@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ប្រព័ន្ធស្រង់វត្តមានសិស្សតាម QR Code និង Telegram Bot តាមថ្នាក់រៀន</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTML5 QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- QRCode Generator Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Khmer -->
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Kantumruy Pro', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        #reader video {
+            object-fit: cover !important;
+            border-radius: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <!-- Header Banner -->
+    <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-30 border-b border-indigo-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center space-x-3 space-x-reverse">
+                <div class="bg-white text-indigo-900 p-2.5 rounded-2xl shadow-md flex items-center justify-center">
+                    <i class="fa-solid fa-qrcode text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg md:text-xl font-bold tracking-wide">ប្រព័ន្ធស្រង់វត្តមានសិស្សតាម QR Code</h1>
+                    <p class="text-xs text-indigo-200">បែងចែកការផ្ញើសារ Telegram Bot ទៅតាមថ្នាក់នីមួយៗ (Class-Based Telegram Routing)</p>
+                </div>
+            </div>
+
+            <!-- Active Status Indicator -->
+            <div id="classBotStatusBadge" class="flex items-center gap-2 text-xs">
+                <!-- Rendered dynamically -->
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs Bar -->
+    <div class="bg-white border-b border-slate-200 shadow-sm sticky top-[61px] z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto gap-2 py-2">
+            <button id="navTab1" onclick="switchMainTab('scan')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap bg-indigo-600 text-white shadow-sm">
+                <i class="fa-solid fa-camera"></i> ស្កេនវត្តមាន (Attendance Scanner)
+            </button>
+            <button id="navTab2" onclick="switchMainTab('classBot')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">
+                <i class="fa-solid fa-robot text-indigo-600"></i> កំណត់ Telegram តាមថ្នាក់ (Class Telegram Settings)
+            </button>
+            <button id="navTab5" onclick="switchMainTab('schedule')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">
+                <i class="fa-solid fa-calendar-days text-amber-600"></i> កាលវិភាគតាមមុខវិជ្ជា (Subject Schedules)
+            </button>
+            <button id="navTabDirectory" onclick="switchMainTab('directory')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">
+                <i class="fa-solid fa-users text-teal-600"></i> បញ្ជីសិស្ស/គ្រូ (Directory)
+            </button>
+            <button id="navTab3" onclick="switchMainTab('qrGen')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">
+                <i class="fa-solid fa-id-card text-emerald-600"></i> បង្កើត QR សិស្ស (Student QR Generator)
+            </button>
+            <button id="navTab4" onclick="switchMainTab('gasCode')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200">
+                <i class="fa-solid fa-code text-indigo-500"></i> កូដ Google Apps Script ថ្មី
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-grow">
+
+        <!-- TAB 1: ATTENDANCE SCANNER SECTION -->
+        <section id="sectionScan" class="block space-y-6">
+            
+            <!-- Active Session Context Header -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-wrap justify-between items-center gap-4">
+                <div class="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
+                    <div class="bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                        <i class="fa-solid fa-graduation-cap text-indigo-600"></i>
+                        <span class="text-slate-500">ថ្នាក់កំពុងជ្រើសរើស៖</span>
+                        <strong id="displayClass" class="text-indigo-900 font-bold">ថ្នាក់ទី ១២A</strong>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                        <i class="fa-solid fa-book-open text-emerald-600"></i>
+                        <span class="text-slate-500">មុខវិជ្ជា៖</span>
+                        <strong id="displaySubject" class="text-emerald-900 font-bold">គណិតវិទ្យា</strong>
+                    </div>
+                    <div class="bg-purple-50 border border-purple-100 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                        <i class="fa-solid fa-chalkboard-user text-purple-600"></i>
+                        <span class="text-slate-500">គ្រូបង្រៀន៖</span>
+                        <strong id="displayTeacher" class="text-purple-900 font-bold">លោកគ្រូ សុខ</strong>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                        <i class="fa-regular fa-clock text-amber-600"></i>
+                        <span class="text-slate-500">ម៉ោងសិក្សា៖</span>
+                        <strong id="displayScheduleInfo" class="text-amber-900 font-bold">ស្វ័យប្រវត្តិតាមកាលវិភាគ</strong>
+                    </div>
+                </div>
+
+                <div class="text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-clock text-indigo-500"></i>
+                    <span id="liveClock">--:--:--</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Scanner Input Control Side (5 Cols) -->
+                <div class="lg:col-span-5 flex flex-col gap-6">
+                    
+                    <!-- Class & Subject Picker -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                        <h2 class="text-xs sm:text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-indigo-600"></i>
+                            ជ្រើសរើសថ្នាក់ និងមុខវិជ្ជារៀន
+                        </h2>
+                        
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">ថ្នាក់រៀន (Class) *</label>
+                                <select id="sessionClass" onchange="onClassOrTimeChanged()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-semibold">
+                                    <optgroup label="អនុវិទ្យាល័យ">
+                                        <option value="ថ្នាក់ទី៧A">ថ្នាក់ទី៧A</option>
+                                        <option value="ថ្នាក់ទី៧B">ថ្នាក់ទី៧B</option>
+                                        <option value="ថ្នាក់ទី៨A">ថ្នាក់ទី៨A</option>
+                                        <option value="ថ្នាក់ទី៨B">ថ្នាក់ទី៨B</option>
+                                        <option value="ថ្នាក់ទី៩A">ថ្នាក់ទី៩A</option>
+                                        <option value="ថ្នាក់ទី៩B">ថ្នាក់ទី៩B</option>
+                                    </optgroup>
+                                    <optgroup label="វិទ្យាល័យ">
+                                        <option value="ថ្នាក់ទី១០A">ថ្នាក់ទី១០A</option>
+                                        <option value="ថ្នាក់ទី១០B">ថ្នាក់ទី១០B</option>
+                                        <option value="ថ្នាក់ទី១១A">ថ្នាក់ទី១១A</option>
+                                        <option value="ថ្នាក់ទី១១B">ថ្នាក់ទី១១B</option>
+                                        <option value="ថ្នាក់ទី១២A" selected>ថ្នាក់ទី១២A</option>
+                                        <option value="ថ្នាក់ទី១២B">ថ្នាក់ទី១២B</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="block text-[11px] font-semibold text-slate-600">មុខវិជ្ជា (Subject) *</label>
+                                    <span id="autoSubjectBadge" class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">Auto 🤖</span>
+                                </div>
+                                <select id="sessionSubject" onchange="updateSessionInfo(false)" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                    <option value="គណិតវិទ្យា" selected>គណិតវិទ្យា</option>
+                                    <option value="រូបវិទ្យា">រូបវិទ្យា</option>
+                                    <option value="គីមីវិទ្យា">គីមីវិទ្យា</option>
+                                    <option value="ជីវវិទ្យា">ជីវវិទ្យា</option>
+                                    <option value="អក្សរសាស្ត្រខ្មែរ">អក្សរសាស្ត្រខ្មែរ</option>
+                                    <option value="ភាសាអង់គ្លេស">ភាសាអង់គ្លេស</option>
+                                    <option value="ប្រវត្តិវិទ្យា">ប្រវត្តិវិទ្យា</option>
+                                    <option value="ភូមិវិទ្យា">ភូមិវិទ្យា</option>
+                                    <option value="ពលរដ្ឋវិទ្យា">ពលរដ្ឋវិទ្យា</option>
+                                    <option value="ព័ត៌មានវិទ្យា">ព័ត៌មានវិទ្យា</option>
+                                    <option value="អប់រំឥស្លាម">អប់រំឥស្លាម</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">ឈ្មោះគ្រូបង្រៀន</label>
+                            <input type="text" id="sessionTeacher" value="លោកគ្រូ សុខ" onchange="updateSessionInfo(false)" placeholder="បញ្ចូលឈ្មោះគ្រូ..." class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Scanner Box -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                        
+                        <!-- Toggle Mode -->
+                        <div class="flex border-b border-slate-200 mb-4">
+                            <button id="subTabQrBtn" onclick="switchScanSubTab('qr')" class="py-2 px-4 border-b-2 border-indigo-600 text-indigo-600 font-bold text-xs flex-1 text-center flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-camera"></i> ស្កេន QR Code
+                            </button>
+                            <button id="subTabManualBtn" onclick="switchScanSubTab('manual')" class="py-2 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-bold text-xs flex-1 text-center flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-keyboard"></i> បញ្ចូលដោយដៃ
+                            </button>
+                        </div>
+
+                        <!-- Camera Scanner Area -->
+                        <div id="qrScanSubArea" class="block">
+                            <div class="relative bg-slate-900 rounded-2xl overflow-hidden min-h-[250px] flex flex-col items-center justify-center border border-slate-800 shadow-inner">
+                                <div id="reader" class="w-full h-full"></div>
+                                
+                                <div id="cameraPlaceholder" class="text-center p-6 text-slate-400">
+                                    <i class="fa-solid fa-camera-retro text-4xl mb-3 text-slate-600"></i>
+                                    <p class="text-xs">ចុចប៊ូតុងខាងក្រោមដើម្បីបើកកាមេរ៉ាស្កេន</p>
+                                    <p class="text-[10px] text-amber-400/80 mt-1"><i class="fa-solid fa-shield-halved"></i> ត្រូវប្រាកដថាលោកអ្នកបានអនុញ្ញាត (Allow) សិទ្ធិកាមេរ៉ា</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 flex gap-2">
+                                <button id="startCamBtn" onclick="startCamera()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 shadow-sm">
+                                    <i class="fa-solid fa-play"></i> បើកកាមេរ៉ា
+                                </button>
+                                <button id="stopCamBtn" onclick="stopCamera()" class="hidden flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 shadow-sm">
+                                    <i class="fa-solid fa-stop"></i> បិទកាមេរ៉ា
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Manual Entry Area -->
+                        <div id="manualScanSubArea" class="hidden">
+                            <form onsubmit="handleManualSubmit(event)" class="space-y-3">
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">អត្តលេខសិស្ស (Student ID) *</label>
+                                    <input type="text" id="manualId" onkeyup="autoFillStudentName(this.value)" required placeholder="ឧ. STU-101" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">ឈ្មោះសិស្ស (Student Name) *</label>
+                                    <input type="text" id="manualName" required placeholder="ឧ. ចាន់ សុខា" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">ស្ថានភាពវត្តមាន</label>
+                                    <select id="manualStatus" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                        <option value="AUTO">🤖 គណនាស្វ័យប្រវត្តិតាមកាលវិភាគម៉ោង</option>
+                                        <option value="មកដល់">មកដល់ (Present)</option>
+                                        <option value="មកយឺត">មកយឺត (Late)</option>
+                                        <option value="ច្បាប់">មានច្បាប់ (Permission)</option>
+                                        <option value="អវត្តមាន">អវត្តមាន (Absent)</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 shadow-sm">
+                                    <i class="fa-solid fa-check"></i> កត់ត្រាវត្តមាន & ផ្ញើទៅ Telegram ថ្នាក់នេះ
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- Logs Table Side (7 Cols) -->
+                <div class="lg:col-span-7 flex flex-col gap-6">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col h-full">
+                        
+                        <!-- Header Actions -->
+                        <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                            <div>
+                                <h2 class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2">
+                                    <i class="fa-solid fa-clipboard-check text-indigo-600"></i>
+                                    បញ្ជីវត្តមានដែលបានកត់ត្រា
+                                </h2>
+                                <p class="text-xs text-slate-500">ចំនួនសរុប៖ <span id="totalScansCount" class="font-bold text-indigo-600">0</span> នាក់</p>
+                            </div>
+
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button onclick="exportSystemBackup()" title="ទាញយកការកំណត់ និងទិន្នន័យទាំងអស់" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 border border-indigo-200">
+                                    <i class="fa-solid fa-download text-indigo-600"></i> បម្រុងទុក (Backup)
+                                </button>
+                                <label title="បញ្ចូលការកំណត់ និងទិន្នន័យពីមុន" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 border border-emerald-200 cursor-pointer">
+                                    <i class="fa-solid fa-upload text-emerald-600"></i> ស្ដារទិន្នន័យ (Restore)
+                                    <input type="file" id="restoreFileInput" onchange="importSystemBackup(event)" accept=".json" class="hidden">
+                                </label>
+                                <button onclick="exportToCSV()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 border border-slate-300">
+                                    <i class="fa-solid fa-file-csv text-emerald-600"></i> CSV
+                                </button>
+                                <button onclick="clearHistory()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 border border-rose-200">
+                                    <i class="fa-solid fa-trash-can"></i> លុបបញ្ជី
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filter Bar -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
+                            <div class="sm:col-span-2 relative">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                                <input type="text" id="searchInput" onkeyup="renderLogs()" placeholder="ស្វែងរកឈ្មោះ ឬ អត្តលេខ..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl pl-9 pr-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <select id="filterClass" onchange="renderLogs()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                    <option value="ALL">គ្រប់ថ្នាក់ទាំងអស់</option>
+                                    <option value="ថ្នាក់ទី៧A">ថ្នាក់ទី៧A</option>
+                                    <option value="ថ្នាក់ទី៧B">ថ្នាក់ទី៧B</option>
+                                    <option value="ថ្នាក់ទី៨A">ថ្នាក់ទី៨A</option>
+                                    <option value="ថ្នាក់ទី៨B">ថ្នាក់ទី៨B</option>
+                                    <option value="ថ្នាក់ទី៩A">ថ្នាក់ទី៩A</option>
+                                    <option value="ថ្នាក់ទី៩B">ថ្នាក់ទី៩B</option>
+                                    <option value="ថ្នាក់ទី១០A">ថ្នាក់ទី១០A</option>
+                                    <option value="ថ្នាក់ទី១០B">ថ្នាក់ទី១០B</option>
+                                    <option value="ថ្នាក់ទី១១A">ថ្នាក់ទី១១A</option>
+                                    <option value="ថ្នាក់ទី១១B">ថ្នាក់ទី១១B</option>
+                                    <option value="ថ្នាក់ទី១២A">ថ្នាក់ទី១២A</option>
+                                    <option value="ថ្នាក់ទី១២B">ថ្នាក់ទី១២B</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Table Logs -->
+                        <div class="overflow-x-auto rounded-xl border border-slate-200 flex-1 min-h-[250px]">
+                            <table class="w-full text-xs text-left text-slate-600">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-100 border-b border-slate-200 sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2.5">កាលបរិច្ឆេទ/ម៉ោង</th>
+                                        <th class="px-3 py-2.5">អត្តលេខ</th>
+                                        <th class="px-3 py-2.5">ឈ្មោះសិស្ស</th>
+                                        <th class="px-3 py-2.5">ថ្នាក់</th>
+                                        <th class="px-3 py-2.5">មុខវិជ្ជា/គ្រូ</th>
+                                        <th class="px-3 py-2.5 text-center">ស្ថានភាព</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logsTableBody" class="divide-y divide-slate-200 bg-white">
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 5: AUTOMATIC TIME SCHEDULE & SUBJECT CONFIGURATION -->
+        <section id="sectionSchedule" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                
+                <div class="mb-6 border-b border-slate-200 pb-4 flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-days text-amber-600"></i>
+                            កំណត់កាលវិភាគម៉ោងរៀន និងមុខវិជ្ជា (Automatic Schedule Settings)
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-1">ពេលស្កេន QR ប្រព័ន្ធនឹងចាប់យករៀបមុខវិជ្ជា និងឈ្មោះគ្រូបង្រៀនដោយស្វ័យប្រវត្តិតាមម៉ោងជាក់ស្តែង!</p>
+                    </div>
+
+                    <div class="flex items-center gap-3 bg-amber-50 px-4 py-2 rounded-xl border border-amber-200">
+                        <span class="text-xs font-bold text-amber-900">បើកប្រព័ន្ធស្វ័យប្រវត្តិ៖</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="enableAutoSchedule" onchange="toggleAutoSchedule(this.checked)" class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    
+                    <!-- Add Schedule Form (4 Cols) -->
+                    <div class="lg:col-span-4 bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                        <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus-circle text-amber-600"></i> បន្ថែមម៉ោងកាលវិភាគ
+                        </h3>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">ថ្នាក់រៀន (Class) *</label>
+                            <select id="schedClass" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 font-semibold focus:ring-2 focus:ring-amber-500">
+                                <option value="ថ្នាក់ទី១២A">ថ្នាក់ទី១២A</option>
+                                <option value="ថ្នាក់ទី១២B">ថ្នាក់ទី១២B</option>
+                                <option value="ថ្នាក់ទី១១A">ថ្នាក់ទី១១A</option>
+                                <option value="ថ្នាក់ទី១១B">ថ្នាក់ទី១១B</option>
+                                <option value="ថ្នាក់ទី១០A">ថ្នាក់ទី១០A</option>
+                                <option value="ថ្នាក់ទី៩A">ថ្នាក់ទី៩A</option>
+                                <option value="ថ្នាក់ទី៨A">ថ្នាក់ទី៨A</option>
+                                <option value="ថ្នាក់ទី៧A">ថ្នាក់ទី៧A</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">ម៉ោងចាប់ផ្ដើម *</label>
+                                <input type="time" id="schedStartTime" value="07:00" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">ម៉ោងបញ្ចប់ *</label>
+                                <input type="time" id="schedEndTime" value="08:00" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-amber-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">មុខវិជ្ជា (Subject) *</label>
+                            <select id="schedSubject" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-amber-500">
+                                <option value="គណិតវិទ្យា">គណិតវិទ្យា</option>
+                                <option value="រូបវិទ្យា">រូបវិទ្យា</option>
+                                <option value="គីមីវិទ្យា">គីមីវិទ្យា</option>
+                                <option value="ជីវវិទ្យា">ជីវវិទ្យា</option>
+                                <option value="អក្សរសាស្ត្រខ្មែរ">អក្សរសាស្ត្រខ្មែរ</option>
+                                <option value="ភាសាអង់គ្លេស">ភាសាអង់គ្លេស</option>
+                                <option value="ប្រវត្តិវិទ្យា">ប្រវត្តិវិទ្យា</option>
+                                <option value="ភូមិវិទ្យា">ភូមិវិទ្យា</option>
+                                <option value="ពលរដ្ឋវិទ្យា">ពលរដ្ឋវិទ្យា</option>
+                                <option value="ព័ត៌មានវិទ្យា">ព័ត៌មានវិទ្យា</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">គ្រូបង្រៀន (Teacher)</label>
+                            <input type="text" id="schedTeacher" placeholder="ឧ. លោកគ្រូ សុខ" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        </div>
+
+                        <button onclick="addScheduleRule()" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus"></i> រក្សាទុកកាលវិភាគ
+                        </button>
+                    </div>
+
+                    <!-- Schedule List Table (8 Cols) -->
+                    <div class="lg:col-span-8 space-y-3">
+                        <div class="overflow-x-auto rounded-xl border border-slate-200 max-h-[380px] overflow-y-auto">
+                            <table class="w-full text-xs text-left text-slate-600">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-3 py-2">ថ្នាក់រៀន</th>
+                                        <th class="px-3 py-2">ចន្លោះម៉ោង</th>
+                                        <th class="px-3 py-2">មុខវិជ្ជា</th>
+                                        <th class="px-3 py-2">គ្រូបង្រៀន</th>
+                                        <th class="px-3 py-2 text-center">សកម្មភាព</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scheduleTableBody" class="divide-y divide-slate-200 bg-white">
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB DIRECTORY: STUDENT & TEACHER MANAGEMENT DIRECTORY -->
+        <section id="sectionDirectory" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div class="mb-6 border-b border-slate-200 pb-4 flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-address-book text-teal-600"></i>
+                            គ្រប់គ្រងបញ្ជីឈ្មោះសិស្ស និងគ្រូបង្រៀន (Student & Teacher Directory)
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-1">រក្សាទុកបញ្ជីឈ្មោះសិស្ស និងគ្រូ ដើម្បីអោយប្រព័ន្ធទាញយកឈ្មោះដោយស្វ័យប្រវត្តិពេលស្កេន ឬបញ្ចូលទិន្នន័យ!</p>
+                    </div>
+
+                    <!-- Directory Mode Switcher -->
+                    <div class="flex bg-slate-100 p-1 rounded-xl">
+                        <button id="dirTabStudentBtn" onclick="switchDirectorySubTab('students')" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-white text-teal-700 shadow-sm transition">
+                            <i class="fa-solid fa-graduation-cap"></i> បញ្ជីសិស្ស
+                        </button>
+                        <button id="dirTabTeacherBtn" onclick="switchDirectorySubTab('teachers')" class="px-4 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition">
+                            <i class="fa-solid fa-chalkboard-user"></i> បញ្ជីគ្រូបង្រៀន
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SUB-TAB 1: STUDENTS MANAGEMENT -->
+                <div id="dirStudentsArea" class="block">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Add Student Form (4 cols) -->
+                        <div class="lg:col-span-4 bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                            <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                <i class="fa-solid fa-user-plus text-teal-600"></i> បន្ថែម ឬកែប្រែឈ្មោះសិស្ស
+                            </h3>
+
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">អត្តលេខសិស្ស (ID) *</label>
+                                <input type="text" id="dirStuId" placeholder="ឧ. STU-1001" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">ឈ្មោះសិស្ស *</label>
+                                <input type="text" id="dirStuName" placeholder="ឧ. ចាន់ សុខា" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">ភេទ</label>
+                                    <select id="dirStuGender" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500">
+                                        <option value="ប្រុស">ប្រុស</option>
+                                        <option value="ស្រី">ស្រី</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">ថ្នាក់រៀន *</label>
+                                    <select id="dirStuClass" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 font-semibold focus:ring-2 focus:ring-teal-500">
+                                        <option value="ថ្នាក់ទី៧A">ថ្នាក់ទី៧A</option>
+                                        <option value="ថ្នាក់ទី៧B">ថ្នាក់ទី៧B</option>
+                                        <option value="ថ្នាក់ទី៨A">ថ្នាក់ទី៨A</option>
+                                        <option value="ថ្នាក់ទី៨B">ថ្នាក់ទី៨B</option>
+                                        <option value="ថ្នាក់ទី៩A">ថ្នាក់ទី៩A</option>
+                                        <option value="ថ្នាក់ទី៩B">ថ្នាក់ទី៩B</option>
+                                        <option value="ថ្នាក់ទី១០A">ថ្នាក់ទី១០A</option>
+                                        <option value="ថ្នាក់ទី១០B">ថ្នាក់ទី១០B</option>
+                                        <option value="ថ្នាក់ទី១១A">ថ្នាក់ទី១១A</option>
+                                        <option value="ថ្នាក់ទី១១B">ថ្នាក់ទី១១B</option>
+                                        <option value="ថ្នាក់ទី១២A" selected>ថ្នាក់ទី១២A</option>
+                                        <option value="ថ្នាក់ទី១២B">ថ្នាក់ទី១២B</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">លេខទូរស័ព្ទអាណាព្យាបាល</label>
+                                <input type="text" id="dirStuPhone" placeholder="ឧ. 012 345 678" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                            </div>
+
+                            <button onclick="addStudentToDirectory()" class="w-full bg-teal-600 hover:bg-teal-700 text-white py-2.5 rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i> រក្សាទុកសិស្សនេះ
+                            </button>
+                        </div>
+
+                        <!-- Students List Table (8 cols) -->
+                        <div class="lg:col-span-8 space-y-3">
+                            <div class="flex justify-between items-center gap-2">
+                                <div class="relative flex-1">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                                    <input type="text" id="dirStuSearch" onkeyup="renderStudentsDirectory()" placeholder="ស្វែងរកអត្តលេខ ឬឈ្មោះសិស្ស..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl pl-9 pr-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                                </div>
+                                <select id="dirStuClassFilter" onchange="renderStudentsDirectory()" class="bg-slate-100 border border-slate-200 text-slate-700 text-xs rounded-xl px-2.5 py-2 font-semibold">
+                                    <option value="ALL">គ្រប់ថ្នាក់ទាំងអស់</option>
+                                    <option value="ថ្នាក់ទី៧A">ថ្នាក់ទី៧A</option>
+                                    <option value="ថ្នាក់ទី៧B">ថ្នាក់ទី៧B</option>
+                                    <option value="ថ្នាក់ទី៨A">ថ្នាក់ទី៨A</option>
+                                    <option value="ថ្នាក់ទី៨B">ថ្នាក់ទី៨B</option>
+                                    <option value="ថ្នាក់ទី៩A">ថ្នាក់ទី៩A</option>
+                                    <option value="ថ្នាក់ទី៩B">ថ្នាក់ទី៩B</option>
+                                    <option value="ថ្នាក់ទី១០A">ថ្នាក់ទី១០A</option>
+                                    <option value="ថ្នាក់ទី១០B">ថ្នាក់ទី១០B</option>
+                                    <option value="ថ្នាក់ទី១១A">ថ្នាក់ទី១១A</option>
+                                    <option value="ថ្នាក់ទី១១B">ថ្នាក់ទី១១B</option>
+                                    <option value="ថ្នាក់ទី១២A">ថ្នាក់ទី១២A</option>
+                                    <option value="ថ្នាក់ទី១២B">ថ្នាក់ទី១២B</option>
+                                </select>
+                            </div>
+
+                            <div class="overflow-x-auto rounded-xl border border-slate-200 max-h-[380px] overflow-y-auto">
+                                <table class="w-full text-xs text-left text-slate-600">
+                                    <thead class="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0 border-b border-slate-200">
+                                        <tr>
+                                            <th class="px-3 py-2">អត្តលេខ</th>
+                                            <th class="px-3 py-2">ឈ្មោះសិស្ស</th>
+                                            <th class="px-3 py-2">ភេទ</th>
+                                            <th class="px-3 py-2">ថ្នាក់</th>
+                                            <th class="px-3 py-2">លេខអាណាព្យាបាល</th>
+                                            <th class="px-3 py-2 text-center">សកម្មភាព</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="studentsTableBody" class="divide-y divide-slate-200 bg-white">
+                                        <!-- Dynamic student rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-TAB 2: TEACHERS MANAGEMENT -->
+                <div id="dirTeachersArea" class="hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Add Teacher Form (4 cols) -->
+                        <div class="lg:col-span-4 bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                            <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                <i class="fa-solid fa-user-tie text-indigo-600"></i> បន្ថែមឈ្មោះគ្រូបង្រៀន
+                            </h3>
+
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">ឈ្មោះគ្រូបង្រៀន *</label>
+                                <input type="text" id="dirTeachName" placeholder="ឧ. លោកគ្រូ សុខ" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">មុខវិជ្ជាបង្រៀន *</label>
+                                <select id="dirTeachSubject" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500">
+                                    <option value="គណិតវិទ្យា">គណិតវិទ្យា</option>
+                                    <option value="រូបវិទ្យា">រូបវិទ្យា</option>
+                                    <option value="គីមីវិទ្យា">គីមីវិទ្យា</option>
+                                    <option value="ជីវវិទ្យា">ជីវវិទ្យា</option>
+                                    <option value="អក្សរសាស្ត្រខ្មែរ">អក្សរសាស្ត្រខ្មែរ</option>
+                                    <option value="ភាសាអង់គ្លេស">ភាសាអង់គ្លេស</option>
+                                    <option value="ប្រវត្តិវិទ្យា">ប្រវត្តិវិទ្យា</option>
+                                    <option value="ភូមិវិទ្យា">ភូមិវិទ្យា</option>
+                                    <option value="ពលរដ្ឋវិទ្យា">ពលរដ្ឋវិទ្យា</option>
+                                    <option value="ព័ត៌មានវិទ្យា">ព័ត៌មានវិទ្យា</option>
+                                    <option value="អប់រំឥស្លាម">អប់រំឥស្លាម</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">លេខទូរស័ព្ទ</label>
+                                <input type="text" id="dirTeachPhone" placeholder="ឧ. 011 223 344" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            </div>
+
+                            <button onclick="addTeacherToDirectory()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-plus"></i> រក្សាទុកគ្រូបង្រៀន
+                            </button>
+                        </div>
+
+                        <!-- Teachers List Table (8 cols) -->
+                        <div class="lg:col-span-8 space-y-3">
+                            <div class="overflow-x-auto rounded-xl border border-slate-200 max-h-[380px] overflow-y-auto">
+                                <table class="w-full text-xs text-left text-slate-600">
+                                    <thead class="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0 border-b border-slate-200">
+                                        <tr>
+                                            <th class="px-4 py-3">ឈ្មោះគ្រូបង្រៀន</th>
+                                            <th class="px-4 py-3">មុខវិជ្ជាទទួលខុសត្រូវ</th>
+                                            <th class="px-4 py-3">លេខទូរស័ព្ទ</th>
+                                            <th class="px-4 py-3 text-center">សកម្មភាព</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="teachersTableBody" class="divide-y divide-slate-200 bg-white">
+                                        <!-- Dynamic teacher rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 2: CLASS TELEGRAM BOT CONFIGURATION SECTION -->
+        <section id="sectionClassBot" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                
+                <div class="mb-6 border-b border-slate-200 pb-4">
+                    <h2 class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-robot text-indigo-600"></i>
+                        ការកំណត់ Telegram Bot តាមថ្នាក់នីមួយៗ (Class-Based Telegram Routing)
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">កំណត់ Bot Token និង Group Chat ID សម្រាប់ថ្នាក់រៀងៗខ្លួន។ ពេលសិស្សថ្នាក់ណាស្កេន វត្តមាននឹងបាញ់ត្រង់ទៅ Group Telegram របស់ថ្នាក់នោះ!</p>
+                </div>
+
+                <!-- Global Fallback Setup -->
+                <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-6">
+                    <h3 class="text-xs font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-indigo-600"></i> Global / Default Telegram Bot (ប្រើរួមពេលថ្នាក់គ្មាន Bot ផ្ទាល់)
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Default Bot Token</label>
+                            <input type="text" id="globalBotToken" onchange="saveGlobalBotConfig()" placeholder="123456789:ABCdefGhIJKlm..." class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Default Group Chat ID</label>
+                            <input type="text" id="globalChatId" onchange="saveGlobalBotConfig()" placeholder="-1001234567890" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form to Add/Edit Class Telegram Bot -->
+                <form onsubmit="saveClassBotConfig(event)" class="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6 space-y-4">
+                    <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-plus-circle text-emerald-600"></i> បន្ថែម ឬកែប្រែ Telegram Bot តាមថ្នាក់
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">ជ្រើសរើសថ្នាក់ *</label>
+                            <select id="cfgClassSelect" required class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold">
+                                <optgroup label="អនុវិទ្យាល័យ">
+                                    <option value="ថ្នាក់ទី៧A">ថ្នាក់ទី៧A</option>
+                                    <option value="ថ្នាក់ទី៧B">ថ្នាក់ទី៧B</option>
+                                    <option value="ថ្នាក់ទី៨A">ថ្នាក់ទី៨A</option>
+                                    <option value="ថ្នាក់ទី៨B">ថ្នាក់ទី៨B</option>
+                                    <option value="ថ្នាក់ទី៩A">ថ្នាក់ទី៩A</option>
+                                    <option value="ថ្នាក់ទី៩B">ថ្នាក់ទី៩B</option>
+                                </optgroup>
+                                <optgroup label="វិទ្យាល័យ">
+                                    <option value="ថ្នាក់ទី១០A">ថ្នាក់ទី១០A</option>
+                                    <option value="ថ្នាក់ទី១០B">ថ្នាក់ទី១០B</option>
+                                    <option value="ថ្នាក់ទី១១A">ថ្នាក់ទី១១A</option>
+                                    <option value="ថ្នាក់ទី១១B">ថ្នាក់ទី១១B</option>
+                                    <option value="ថ្នាក់ទី១២A">ថ្នាក់ទី១២A</option>
+                                    <option value="ថ្នាក់ទី១២B">ថ្នាក់ទី១២B</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Telegram Bot Token របស់ថ្នាក់នេះ *</label>
+                            <input type="text" id="cfgClassBotToken" required placeholder="Bot Token..." class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Group Chat ID របស់ថ្នាក់នេះ *</label>
+                            <input type="text" id="cfgClassChatId" required placeholder="-100xxxxxxxxx" class="w-full bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> រក្សាទុក Telegram ថ្នាក់នេះ
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Class Bot List Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200">
+                    <table class="w-full text-xs text-left text-slate-600">
+                        <thead class="text-xs text-slate-700 uppercase bg-slate-100 border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3">ថ្នាក់រៀន (Class)</th>
+                                <th class="px-4 py-3">Bot Token</th>
+                                <th class="px-4 py-3">Group Chat ID</th>
+                                <th class="px-4 py-3 text-center">សកម្មភាព</th>
+                            </tr>
+                        </thead>
+                        <tbody id="classBotTableBody" class="divide-y divide-slate-200 bg-white">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 3: STUDENT QR CODE GENERATOR SECTION -->
+        <section id="sectionQrGen" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                
+                <div class="mb-6 border-b border-slate-200 pb-4">
+                    <h2 class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-id-card text-emerald-600"></i>
+                        បង្កើត QR Code កាតសិស្ស (Student QR Card Generator)
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">បង្កើត និងបោះពុម្ព QR Code សម្រាប់សិស្សម្នាក់ៗយកទៅស្កេនចូលរៀន។</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">អត្តលេខសិស្ស (Student ID) *</label>
+                            <input type="text" id="genStudentId" value="STU-1001" onkeyup="generateQRCard()" placeholder="ឧ. STU-1001" class="w-full bg-white border border-slate-300 text-slate-800 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">ឈ្មោះសិស្ស (Student Name) *</label>
+                            <input type="text" id="genStudentName" value="សួន សុខា" onkeyup="generateQRCard()" placeholder="ឧ. សួន សុខា" class="w-full bg-white border border-slate-300 text-slate-800 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">ថ្នាក់រៀន</label>
+                            <select id="genStudentClass" onchange="generateQRCard()" class="w-full bg-white border border-slate-300 text-slate-800 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-semibold">
+                                <option value="ថ្នាក់ទី១២A">ថ្នាក់ទី១២A</option>
+                                <option value="ថ្នាក់ទី១២B">ថ្នាក់ទី១២B</option>
+                                <option value="ថ្នាក់ទី១១A">ថ្នាក់ទី១១A</option>
+                                <option value="ថ្នាក់ទី១០A">ថ្នាក់ទី១០A</option>
+                                <option value="ថ្នាក់ទី៩A">ថ្នាក់ទី៩A</option>
+                            </select>
+                        </div>
+                        <button onclick="generateQRCard()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-xs font-semibold transition">
+                            <i class="fa-solid fa-arrows-rotate"></i> ធ្វើបច្ចុប្បន្នភាព QR
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col items-center justify-center bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 text-center">
+                        <div class="bg-white p-4 rounded-2xl shadow-md border border-slate-200 mb-3 flex flex-col items-center">
+                            <div id="qrcodeDisplay" class="mb-2"></div>
+                            <p id="qrLabelText" class="text-xs font-bold text-slate-800">STU-1001 | សួន សុខា</p>
+                            <span id="qrLabelClass" class="text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full mt-1">ថ្នាក់ទី១២A</span>
+                        </div>
+                        <button onclick="printQRCode()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl font-semibold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-print"></i> បោះពុម្ពកាត QR
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 4: GOOGLE APPS SCRIPT CODE & SETUP INSTRUCTIONS -->
+        <section id="sectionGasCode" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                
+                <div class="mb-4 border-b border-slate-200 pb-4">
+                    <h2 class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-code text-amber-500"></i>
+                        កូដ Google Apps Script ទម្រង់ "Set-and-Forget" (អាន Config ពី Google Sheet)
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">កូដនេះនឹងអានទិន្នន័យ Bot Token & Chat ID ចេញពី Sheet `BotConfig` ដោយស្វ័យប្រវត្តិ។ អ្នកមិនបាច់ Deploy ឡើងវិញទេពេលផ្លាស់ប្តូរ Bot តាមថ្នាក់!</p>
+                </div>
+
+                <div class="mb-5 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                    <label class="block text-xs font-bold text-amber-900 mb-1">Google Apps Script Web App URL របស់អ្នក៖</label>
+                    <div class="flex gap-2">
+                        <input type="url" id="gasUrlMainInput" placeholder="https://script.google.com/macros/s/.../exec" class="flex-1 bg-white border border-slate-300 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <button onclick="saveGasUrlMain()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-semibold">រក្សាទុក URL</button>
+                    </div>
+                </div>
+
+                <div class="relative bg-slate-900 rounded-2xl p-5 overflow-x-auto text-slate-200 text-xs font-mono border border-slate-800 shadow-inner">
+                    <button onclick="copyGasCode()" class="absolute top-3 right-3 bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg border border-slate-700 text-[11px] font-sans flex items-center gap-1.5">
+                        <i class="fa-solid fa-copy"></i> ចម្លងកូដ
+                    </button>
+<pre id="gasCodeText">
+/**
+ * Google Apps Script - Set-and-Forget Attendance System
+ * ----------------------------------------------------
+ * ១. Sheet "Attendance": សម្រាប់កត់ត្រាវត្តមានសិស្ស
+ * ២. Sheet "BotConfig": សម្រាប់កំណត់ Bot Token & Group Chat ID តាមថ្នាក់
+ *    - Col A: ClassName (ឧ. ថ្នាក់ទី១២A)
+ *    - Col B: BotToken  (ឧ. 123456789:ABC...)
+ *    - Col C: ChatID    (ឧ. -100123456789)
+ */
+
+function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var attendanceSheet = ss.getSheetByName("Attendance") || ss.getActiveSheet();
+    
+    var data = JSON.parse(e.postData.contents);
+
+    var studentId   = data.student_id;
+    var studentName = data.student_name;
+    var className   = data.class_name;
+    var subject     = data.subject;
+    var teacher     = data.teacher || "គ្រូបង្រៀន";
+    var status      = data.status || "មកដល់";
+    var timeStr     = data.timestamp || new Date().toLocaleTimeString();
+
+    // 1. រក្សាទុកវត្តមានចូល Sheet "Attendance"
+    attendanceSheet.appendRow([new Date(), studentId, studentName, className, subject, teacher, status]);
+
+    // 2. ស្វែងរក Bot Token និង Chat ID ពីក្នុង Sheet "BotConfig" ឬ Payload
+    var botConfig = getBotConfigForClass(ss, className);
+    var botToken  = data.telegram_token || botConfig.token;
+    var chatId    = data.telegram_chat_id || botConfig.chat_id;
+
+    // 3. ប្រសិនបើមាន Bot Config នោះនឹងផ្ញើសារទៅ Telegram
+    if (botToken && chatId) {
+      sendClassTelegramNotification(botToken, chatId, studentId, studentName, className, subject, teacher, status, timeStr);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({"status": "success"}))
+                         .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": err.toString()}))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// មុខងារអាន Bot Token & Chat ID ចេញពី Sheet "BotConfig" ដោយស្វ័យប្រវត្តិ
+function getBotConfigForClass(ss, className) {
+  var configSheet = ss.getSheetByName("BotConfig");
+  var result = { token: "", chat_id: "" };
+  
+  if (!configSheet) return result;
+
+  var data = configSheet.getDataRange().getValues();
+  // រំលង Header ជួរដេកទី ១
+  for (var i = 1; i < data.length; i++) {
+    var sheetClass = data[i][0] ? data[i][0].toString().trim() : "";
+    if (sheetClass === className.trim()) {
+      result.token   = data[i][1] ? data[i][1].toString().trim() : "";
+      result.chat_id = data[i][2] ? data[i][2].toString().trim() : "";
+      break;
+    }
+  }
+  return result;
+}
+
+function sendClassTelegramNotification(token, chatId, id, name, cls, subj, teacher, status, timeStr) {
+  var url = "https://api.telegram.org/bot" + token + "/sendMessage";
+  
+  var text = "🚨 **វត្តមានសិស្សតាមថ្នាក់រៀន**\n\n" +
+             "🏫 **ថ្នាក់រៀន៖** " + cls + "\n" +
+             "📚 **មុខវិជ្ជា៖** " + subj + "\n" +
+             "👨‍🏫 **គ្រូបង្រៀន៖** " + teacher + "\n\n" +
+             "🆔 **អត្តលេខ៖** " + id + "\n" +
+             "👤 **ឈ្មោះសិស្ស៖** " + name + "\n" +
+             "⏱ **ម៉ោងស្កេន៖** " + timeStr + "\n" +
+             "✅ **ស្ថានភាព៖** " + status;
+
+  var payload = {
+    "chat_id": chatId,
+    "text": text,
+    "parse_mode": "Markdown"
+  };
+
+  var options = {
+    "method": "post",
+    "contentType": "application/json",
+    "payload": JSON.stringify(payload)
+  };
+
+  UrlFetchApp.fetch(url, options);
+}
+</pre>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-3 mt-6">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+            ប្រព័ន្ធស្រង់វត្តមានសិស្សតាម QR Code + Telegram Bot បែងចែកតាមថ្នាក់រៀន &copy; 2026
+        </div>
+    </footer>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <script>
+        // State Management
+        let html5QrcodeScanner = null;
+        let configGasUrl = localStorage.getItem('qr_attendance_gas_url') || '';
+        let globalBotToken = localStorage.getItem('qr_class_global_bot_token') || '';
+        let globalChatId = localStorage.getItem('qr_class_global_chat_id') || '';
+        let classBots = JSON.parse(localStorage.getItem('qr_class_bots') || '{}');
+        let attendanceLogs = JSON.parse(localStorage.getItem('qr_class_attendance_logs') || '[]');
+
+        // Student & Teacher Directory State
+        let studentDirectory = JSON.parse(localStorage.getItem('qr_student_directory') || JSON.stringify([
+            { id: "STU-1001", name: "សួន សុខា", gender: "ប្រុស", class_name: "ថ្នាក់ទី១២A", phone: "012 345 678" },
+            { id: "STU-1002", name: "ចាន់ ធារ៉ា", gender: "ស្រី", class_name: "ថ្នាក់ទី១២A", phone: "098 765 432" },
+            { id: "STU-1003", name: "លី ហេង", gender: "ប្រុស", class_name: "ថ្នាក់ទី១២A", phone: "088 112 233" }
+        ]));
+
+        let teacherDirectory = JSON.parse(localStorage.getItem('qr_teacher_directory') || JSON.stringify([
+            { id: 1, name: "លោកគ្រូ សុខ", subject: "គណិតវិទ្យា", phone: "012 999 888" },
+            { id: 2, name: "អ្នកគ្រូ ចាន់", subject: "រូបវិទ្យា", phone: "011 777 666" },
+            { id: 3, name: "លោកគ្រូ ហេង", subject: "គីមីវិទ្យា", phone: "097 555 444" }
+        ]));
+
+        // Schedule & Subject State
+        let autoScheduleEnabled = localStorage.getItem('qr_sched_enabled') !== 'false'; // default true
+        let subjectSchedules = JSON.parse(localStorage.getItem('qr_subject_schedules') || JSON.stringify([
+            { id: 1, class_name: "ថ្នាក់ទី១២A", start_time: "07:00", end_time: "08:00", subject: "គណិតវិទ្យា", teacher: "លោកគ្រូ សុខ" },
+            { id: 2, class_name: "ថ្នាក់ទី១២A", start_time: "08:00", end_time: "09:00", subject: "រូបវិទ្យា", teacher: "អ្នកគ្រូ ចាន់" },
+            { id: 3, class_name: "ថ្នាក់ទី១២A", start_time: "09:00", end_time: "10:00", subject: "គីមីវិទ្យា", teacher: "លោកគ្រូ ហេង" },
+            { id: 4, class_name: "ថ្នាក់ទី១២A", start_time: "10:00", end_time: "11:00", subject: "អក្សរសាស្ត្រខ្មែរ", teacher: "អ្នកគ្រូ ម៉ៅ" }
+        ]));
+
+        // Clock & Timer
+        setInterval(() => {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('km-KH', { hour12: true });
+            const clockEl = document.getElementById('liveClock');
+            if (clockEl) clockEl.innerText = timeStr;
+        }, 1000);
+
+        function playBeepSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 880;
+                gain.gain.value = 0.2;
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.15);
+            } catch (e) {
+                console.log("Audio not supported or blocked");
+            }
+        }
+
+        function toggleAutoSchedule(val) {
+            autoScheduleEnabled = val;
+            localStorage.setItem('qr_sched_enabled', val);
+            onClassOrTimeChanged();
+            showToast(val ? "បានបើកប្រព័ន្ធកាលវិភាគស្វ័យប្រវត្តិ" : "បានបិទប្រព័ន្ធកាលវិភាគស្វ័យប្រវត្តិ", "info");
+        }
+
+        function addScheduleRule() {
+            const cls = document.getElementById('schedClass').value;
+            const startTime = document.getElementById('schedStartTime').value;
+            const endTime = document.getElementById('schedEndTime').value;
+            const subject = document.getElementById('schedSubject').value;
+            const teacher = document.getElementById('schedTeacher').value.trim() || "គ្រូបង្រៀន";
+
+            if (!startTime || !endTime) {
+                showToast("សូមជ្រើសរើសម៉ោងចាប់ផ្ដើម និងបញ្ចប់!", "warning");
+                return;
+            }
+
+            const newRule = { id: Date.now(), class_name: cls, start_time: startTime, end_time: endTime, subject, teacher };
+            subjectSchedules.push(newRule);
+            localStorage.setItem('qr_subject_schedules', JSON.stringify(subjectSchedules));
+
+            renderScheduleList();
+            onClassOrTimeChanged();
+            showToast("បានបន្ថែមម៉ោងកាលវិភាគជោគជ័យ!", "success");
+        }
+
+        function deleteScheduleRule(id) {
+            subjectSchedules = subjectSchedules.filter(s => s.id !== id);
+            localStorage.setItem('qr_subject_schedules', JSON.stringify(subjectSchedules));
+            renderScheduleList();
+            onClassOrTimeChanged();
+            showToast("បានលុបម៉ោងកាលវិភាគ", "info");
+        }
+
+        function renderScheduleList() {
+            const tbody = document.getElementById('scheduleTableBody');
+            if (!tbody) return;
+
+            if (subjectSchedules.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-slate-400">ពុំទាន់មានកាលវិភាគនៅឡើយទេ</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = subjectSchedules.map(s => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-3 py-2 font-bold text-slate-800">${s.class_name}</td>
+                    <td class="px-3 py-2 font-mono text-[11px] text-amber-700 font-semibold">${s.start_time} - ${s.end_time}</td>
+                    <td class="px-3 py-2 font-medium text-emerald-900">${s.subject}</td>
+                    <td class="px-3 py-2 text-slate-600">${s.teacher}</td>
+                    <td class="px-3 py-2 text-center">
+                        <button onclick="deleteScheduleRule(${s.id})" class="text-rose-600 hover:text-rose-800 p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('gasUrlMainInput').value = configGasUrl;
+            document.getElementById('globalBotToken').value = globalBotToken;
+            document.getElementById('globalChatId').value = globalChatId;
+
+            // Load Schedule & Directory settings
+            document.getElementById('enableAutoSchedule').checked = autoScheduleEnabled;
+            renderScheduleList();
+            renderStudentsDirectory();
+            renderTeachersDirectory();
+
+            onClassOrTimeChanged();
+            renderClassBotTable();
+            renderLogs();
+            generateQRCard();
+        });
+
+        // Tab Navigation Switcher
+        function switchMainTab(tab) {
+            const secScan = document.getElementById('sectionScan');
+            const secClassBot = document.getElementById('sectionClassBot');
+            const secQrGen = document.getElementById('sectionQrGen');
+            const secGasCode = document.getElementById('sectionGasCode');
+            const secSchedule = document.getElementById('sectionSchedule');
+            const secDirectory = document.getElementById('sectionDirectory');
+
+            const btn1 = document.getElementById('navTab1');
+            const btn2 = document.getElementById('navTab2');
+            const btn3 = document.getElementById('navTab3');
+            const btn4 = document.getElementById('navTab4');
+            const btn5 = document.getElementById('navTab5');
+            const btnDir = document.getElementById('navTabDirectory');
+
+            // Hide all
+            secScan.classList.add('hidden');
+            secClassBot.classList.add('hidden');
+            secQrGen.classList.add('hidden');
+            secGasCode.classList.add('hidden');
+            secSchedule.classList.add('hidden');
+            secDirectory.classList.add('hidden');
+
+            const inactiveClass = "px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200";
+            const activeClass = "px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap bg-indigo-600 text-white shadow-sm";
+
+            btn1.className = inactiveClass;
+            btn2.className = inactiveClass;
+            btn3.className = inactiveClass;
+            btn4.className = inactiveClass;
+            btn5.className = inactiveClass;
+            btnDir.className = inactiveClass;
+
+            if (tab === 'scan') {
+                secScan.classList.remove('hidden');
+                btn1.className = activeClass;
+            } else if (tab === 'classBot') {
+                secClassBot.classList.remove('hidden');
+                btn2.className = activeClass;
+                stopCamera();
+            } else if (tab === 'schedule') {
+                secSchedule.classList.remove('hidden');
+                btn5.className = activeClass;
+                stopCamera();
+            } else if (tab === 'directory') {
+                secDirectory.classList.remove('hidden');
+                btnDir.className = activeClass;
+                stopCamera();
+            } else if (tab === 'qrGen') {
+                secQrGen.classList.remove('hidden');
+                btn3.className = activeClass;
+                stopCamera();
+            } else if (tab === 'gasCode') {
+                secGasCode.classList.remove('hidden');
+                btn4.className = activeClass;
+                stopCamera();
+            }
+        }
+
+        // DIRECTORY MANAGEMENT LOGIC
+        function editStudentInDirectory(id) {
+            const student = studentDirectory.find(s => String(s.id).toLowerCase() === String(id).toLowerCase());
+            if (!student) return;
+
+            document.getElementById('dirStuId').value = student.id;
+            document.getElementById('dirStuName').value = student.name;
+            document.getElementById('dirStuGender').value = student.gender || 'ប្រុស';
+            document.getElementById('dirStuClass').value = student.class_name;
+            document.getElementById('dirStuPhone').value = student.phone || '';
+
+            showToast(`បានទាញយកទិន្នន័យសិស្ស ${student.name} ដើម្បីកែប្រែ`, "info");
+        }
+
+        function addStudentToDirectory() {
+            const id = document.getElementById('dirStuId').value.trim();
+            const name = document.getElementById('dirStuName').value.trim();
+            const gender = document.getElementById('dirStuGender').value;
+            const className = document.getElementById('dirStuClass').value;
+            const phone = document.getElementById('dirStuPhone').value.trim();
+
+            if (!id || !name) {
+                showToast("សូមបញ្ចូលអត្តលេខ និងឈ្មោះសិស្ស!", "warning");
+                return;
+            }
+
+            // Check if existing student
+            const existingIdx = studentDirectory.findIndex(s => String(s.id).toLowerCase() === String(id).toLowerCase());
+            
+            if (existingIdx >= 0) {
+                studentDirectory[existingIdx] = { id, name, gender, class_name: className, phone };
+                showToast(`បានធ្វើបច្ចុប្បន្នភាពព័ត៌មានសិស្ស ${name}`, "info");
+            } else {
+                studentDirectory.push({ id, name, gender, class_name: className, phone });
+                showToast(`បានបន្ថែមសិស្ស ${name} ចូលបញ្ជីជោគជ័យ!`, "success");
+            }
+
+            localStorage.setItem('qr_student_directory', JSON.stringify(studentDirectory));
+            renderStudentsDirectory();
+
+            document.getElementById('dirStuId').value = '';
+            document.getElementById('dirStuName').value = '';
+            document.getElementById('dirStuPhone').value = '';
+        }
+
+        function deleteStudentFromDirectory(id) {
+            studentDirectory = studentDirectory.filter(s => String(s.id) !== String(id));
+            localStorage.setItem('qr_student_directory', JSON.stringify(studentDirectory));
+            renderStudentsDirectory();
+            showToast("បានលុបសិស្សចេញពីបញ្ជី", "info");
+        }
+
+        function renderStudentsDirectory() {
+            const tbody = document.getElementById('studentsTableBody');
+            if (!tbody) return;
+
+            const searchInput = document.getElementById('dirStuSearch');
+            const search = searchInput ? searchInput.value.toLowerCase() : '';
+            
+            const filterClassInput = document.getElementById('dirStuClassFilter');
+            const filterClass = filterClassInput ? filterClassInput.value : 'ALL';
+
+            const filtered = studentDirectory.filter(s => {
+                const matchSearch = String(s.name || '').toLowerCase().includes(search) || String(s.id || '').toLowerCase().includes(search);
+                const matchClass = filterClass === 'ALL' || s.class_name === filterClass;
+                return matchSearch && matchClass;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-400">ពុំមានទិន្នន័យសិស្សឡើយ</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(s => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-3 py-2 font-bold text-slate-800">${s.id}</td>
+                    <td class="px-3 py-2 font-medium text-teal-900">${s.name}</td>
+                    <td class="px-3 py-2 text-slate-600">${s.gender || 'ប្រុស'}</td>
+                    <td class="px-3 py-2 font-semibold text-indigo-900">${s.class_name}</td>
+                    <td class="px-3 py-2 font-mono text-[11px] text-slate-600">${s.phone || '-'}</td>
+                    <td class="px-3 py-2 text-center flex items-center justify-center gap-1">
+                        <button onclick="editStudentInDirectory('${s.id}')" title="កែប្រែ" class="text-amber-600 hover:text-amber-800 p-1">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteStudentFromDirectory('${s.id}')" title="លុប" class="text-rose-600 hover:text-rose-800 p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Auto-Fill Student Name when ID typed
+        function autoFillStudentName(idVal) {
+            if (!idVal) return;
+            const match = studentDirectory.find(s => String(s.id).toLowerCase() === idVal.trim().toLowerCase());
+            if (match) {
+                document.getElementById('manualName').value = match.name;
+            }
+        }
+
+        // Directory Sub-Tab Switcher
+        function switchDirectorySubTab(type) {
+            const stuArea = document.getElementById('dirStudentsArea');
+            const teachArea = document.getElementById('dirTeachersArea');
+            const btnStu = document.getElementById('dirTabStudentBtn');
+            const btnTeach = document.getElementById('dirTabTeacherBtn');
+
+            if (type === 'students') {
+                stuArea.classList.remove('hidden');
+                teachArea.classList.add('hidden');
+                btnStu.className = "px-4 py-1.5 rounded-lg text-xs font-bold bg-white text-teal-700 shadow-sm transition";
+                btnTeach.className = "px-4 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition";
+            } else {
+                stuArea.classList.add('hidden');
+                teachArea.classList.remove('hidden');
+                btnStu.className = "px-4 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition";
+                btnTeach.className = "px-4 py-1.5 rounded-lg text-xs font-bold bg-white text-indigo-700 shadow-sm transition";
+            }
+        }
+
+        // Sub-Tab Scanner Switcher
+        function switchScanSubTab(mode) {
+            const qrArea = document.getElementById('qrScanSubArea');
+            const manualArea = document.getElementById('manualScanSubArea');
+            const btnQr = document.getElementById('subTabQrBtn');
+            const btnManual = document.getElementById('subTabManualBtn');
+
+            if (mode === 'qr') {
+                qrArea.classList.remove('hidden');
+                manualArea.classList.add('hidden');
+                btnQr.className = "py-2 px-4 border-b-2 border-indigo-600 text-indigo-600 font-bold text-xs flex-1 text-center flex items-center justify-center gap-2";
+                btnManual.className = "py-2 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-bold text-xs flex-1 text-center flex items-center justify-center gap-2";
+            } else {
+                qrArea.classList.add('hidden');
+                manualArea.classList.remove('hidden');
+                btnQr.className = "py-2 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-bold text-xs flex-1 text-center flex items-center justify-center gap-2";
+                btnManual.className = "py-2 px-4 border-b-2 border-indigo-600 text-indigo-600 font-bold text-xs flex-1 text-center flex items-center justify-center gap-2";
+                stopCamera();
+            }
+        }
+
+        // Automatic Match Subject & Teacher based on Selected Class & Current Time
+        function onClassOrTimeChanged() {
+            const selectedClass = document.getElementById('sessionClass').value;
+            const selectedSubject = document.getElementById('sessionSubject').value;
+
+            // First check teacher from directory for this subject
+            const matchedTeacher = teacherDirectory.find(t => t.subject === selectedSubject);
+            if (matchedTeacher) {
+                document.getElementById('sessionTeacher').value = matchedTeacher.name;
+            }
+
+            if (!autoScheduleEnabled) {
+                updateSessionInfo(false);
+                return;
+            }
+
+            const now = new Date();
+            const currentMins = now.getHours() * 60 + now.getMinutes();
+
+            // Find matching schedule rule for current class & time
+            const matched = subjectSchedules.find(item => {
+                if (item.class_name !== selectedClass) return false;
+                const [sH, sM] = item.start_time.split(':').map(Number);
+                const [eH, eM] = item.end_time.split(':').map(Number);
+                const startMins = sH * 60 + sM;
+                const endMins = eH * 60 + eM;
+                return currentMins >= startMins && currentMins < endMins;
+            });
+
+            if (matched) {
+                document.getElementById('sessionSubject').value = matched.subject;
+                document.getElementById('sessionTeacher').value = matched.teacher;
+                document.getElementById('displayScheduleInfo').innerText = `${matched.start_time} - ${matched.end_time}`;
+                document.getElementById('autoSubjectBadge').innerText = "Auto 🤖";
+                document.getElementById('autoSubjectBadge').className = "text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded";
+            } else {
+                document.getElementById('displayScheduleInfo').innerText = "ក្រៅម៉ោងកាលវិភាគ";
+                document.getElementById('autoSubjectBadge').innerText = "Manual ✍️";
+                document.getElementById('autoSubjectBadge').className = "text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded";
+            }
+
+            updateSessionInfo(false);
+        }
+
+        function updateSessionInfo(isManualChange = true) {
+            const cls = document.getElementById('sessionClass').value;
+            const subj = document.getElementById('sessionSubject').value;
+            const teacher = document.getElementById('sessionTeacher').value || "គ្រូបង្រៀន";
+
+            document.getElementById('displayClass').innerText = cls;
+            document.getElementById('displaySubject').innerText = subj;
+            document.getElementById('displayTeacher').innerText = teacher;
+
+            updateBotBadgeStatus(cls);
+        }
+
+        function updateBotBadgeStatus(cls) {
+            const badgeEl = document.getElementById('classBotStatusBadge');
+            if (!badgeEl) return;
+
+            const botConfig = classBots[cls];
+
+            if (botConfig && botConfig.token && botConfig.chat_id) {
+                badgeEl.innerHTML = `<span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full flex items-center gap-1.5"><i class="fa-solid fa-circle text-[8px] text-emerald-400"></i> Bot ថ្នាក់ ${cls} ភ្ជាប់រួច</span>`;
+            } else if (globalBotToken && globalChatId) {
+                badgeEl.innerHTML = `<span class="bg-amber-500/20 text-amber-200 border border-amber-500/30 px-2.5 py-1 rounded-full flex items-center gap-1.5"><i class="fa-solid fa-circle text-[8px] text-amber-400"></i> ប្រើ Default Bot</span>`;
+            } else {
+                badgeEl.innerHTML = `<span class="bg-rose-500/20 text-rose-200 border border-rose-500/30 px-2.5 py-1 rounded-full flex items-center gap-1.5"><i class="fa-solid fa-circle text-[8px] text-rose-400"></i> មិនទាន់ភ្ជាប់ Bot</span>`;
+            }
+        }
+
+        // Camera Logic
+        function startCamera() {
+            const placeholder = document.getElementById('cameraPlaceholder');
+            if (placeholder) placeholder.style.display = 'none';
+
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5Qrcode("reader");
+            }
+
+            const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, (decodedText) => {
+                playBeepSound();
+                parseAndProcessStudentData(decodedText);
+            }, (error) => {
+                // scanning...
+            }).then(() => {
+                document.getElementById('startCamBtn').classList.add('hidden');
+                document.getElementById('stopCamBtn').classList.remove('hidden');
+                showToast("បានបើកកាមេរ៉ាស្កេន!", "info");
+            }).catch(err => {
+                console.error(err);
+                if (placeholder) placeholder.style.display = 'block';
+                showToast("ពុំអាចបើកកាមេរ៉ាបានទេ! សូមពិនិត្យ Permission", "error");
+            });
+        }
+
+        function stopCamera() {
+            if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+                html5QrcodeScanner.stop().then(() => {
+                    document.getElementById('startCamBtn').classList.remove('hidden');
+                    document.getElementById('stopCamBtn').classList.add('hidden');
+                    const placeholder = document.getElementById('cameraPlaceholder');
+                    if (placeholder) placeholder.style.display = 'block';
+                    showToast("បានបិទកាមេរ៉ា", "info");
+                }).catch(err => console.error(err));
+            }
+        }
+
+        // Handle Manual Input Submit
+        function handleManualSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('manualId').value.trim();
+            const name = document.getElementById('manualName').value.trim();
+            let status = document.getElementById('manualStatus').value;
+
+            if (!id || !name) {
+                showToast("សូមបញ្ចូលអត្តលេខ និងឈ្មោះសិស្ស!", "warning");
+                return;
+            }
+
+            if (status === "AUTO") status = "មកដល់";
+
+            processRecord(id, name, status);
+            document.getElementById('manualId').value = '';
+            document.getElementById('manualName').value = '';
+        }
+
+        // Main Data Processing Function
+        function processRecord(studentId, studentName, status) {
+            const cls = document.getElementById('sessionClass').value;
+            const subj = document.getElementById('sessionSubject').value;
+            const teacher = document.getElementById('sessionTeacher').value || "គ្រូបង្រៀន";
+            const timestamp = new Date().toLocaleTimeString('km-KH', { hour12: true });
+            const dateStr = new Date().toLocaleDateString('km-KH');
+
+            const record = {
+                id: Date.now(),
+                student_id: studentId,
+                student_name: studentName,
+                class_name: cls,
+                subject: subj,
+                teacher: teacher,
+                status: status,
+                time: timestamp,
+                date: dateStr
+            };
+
+            // Save locally
+            attendanceLogs.unshift(record);
+            localStorage.setItem('qr_class_attendance_logs', JSON.stringify(attendanceLogs));
+            renderLogs();
+
+            // Get bot info
+            const botConfig = classBots[cls] || {};
+            const activeToken = botConfig.token || globalBotToken;
+            const activeChatId = botConfig.chat_id || globalChatId;
+
+            // Send to Google Sheets / Web App if available
+            if (configGasUrl) {
+                fetch(configGasUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        student_name: studentName,
+                        class_name: cls,
+                        subject: subj,
+                        teacher: teacher,
+                        status: status,
+                        timestamp: timestamp,
+                        telegram_token: activeToken,
+                        telegram_chat_id: activeChatId
+                    })
+                }).catch(err => console.error("GAS Post Error:", err));
+            } else if (activeToken && activeChatId) {
+                // Fallback direct Telegram API send if GAS URL isn't configured
+                sendDirectTelegramMessage(activeToken, activeChatId, record);
+            }
+
+            showToast(`បានកត់ត្រាវត្តមានសិស្ស ${studentName} (${status})`, "success");
+        }
+
+        function sendDirectTelegramMessage(token, chatId, record) {
+            const text = `🚨 **វត្តមានសិស្សតាមថ្នាក់រៀន**\n\n` +
+                         `🏫 **ថ្នាក់រៀន៖** ${record.class_name}\n` +
+                         `📚 **មុខវិជ្ជា៖** ${record.subject}\n` +
+                         `👨‍🏫 **គ្រូបង្រៀន៖** ${record.teacher}\n\n` +
+                         `🆔 **អត្តលេខ៖** ${record.student_id}\n` +
+                         `👤 **ឈ្មោះសិស្ស៖** ${record.student_name}\n` +
+                         `⏱ **ម៉ោងស្កេន៖** ${record.time}\n` +
+                         `✅ **ស្ថានភាព៖** ${record.status}`;
+
+            fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: text,
+                    parse_mode: 'Markdown'
+                })
+            }).catch(err => console.error("Telegram Direct Send Error:", err));
+        }
+
+        // Render Attendance Logs
+        function renderLogs() {
+            const tbody = document.getElementById('logsTableBody');
+            if (!tbody) return;
+
+            const search = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
+            const classFilter = document.getElementById('filterClass') ? document.getElementById('filterClass').value : 'ALL';
+
+            const filtered = attendanceLogs.filter(log => {
+                const matchSearch = String(log.student_name || '').toLowerCase().includes(search) || String(log.student_id || '').toLowerCase().includes(search);
+                const matchClass = classFilter === 'ALL' || log.class_name === classFilter;
+                return matchSearch && matchClass;
+            });
+
+            document.getElementById('totalScansCount').innerText = filtered.length;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">ពុំទាន់មានទិន្នន័យវត្តមាននៅឡើយទេ</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(log => {
+                let statusBadge = `<span class="bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full text-[10px]">មកដល់</span>`;
+                if (log.status === "មកយឺត") statusBadge = `<span class="bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full text-[10px]">មកយឺត</span>`;
+                if (log.status === "ច្បាប់") statusBadge = `<span class="bg-blue-100 text-blue-800 font-semibold px-2 py-0.5 rounded-full text-[10px]">មានច្បាប់</span>`;
+                if (log.status === "អវត្តមាន") statusBadge = `<span class="bg-rose-100 text-rose-800 font-semibold px-2 py-0.5 rounded-full text-[10px]">អវត្តមាន</span>`;
+
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-3 py-2.5 font-mono text-[11px] text-slate-500">${log.date} ${log.time}</td>
+                        <td class="px-3 py-2.5 font-bold text-slate-800">${log.student_id}</td>
+                        <td class="px-3 py-2.5 font-medium text-slate-900">${log.student_name}</td>
+                        <td class="px-3 py-2.5 font-semibold text-indigo-900">${log.class_name}</td>
+                        <td class="px-3 py-2.5 text-slate-600">${log.subject} (${log.teacher})</td>
+                        <td class="px-3 py-2.5 text-center">${statusBadge}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Export Logs to CSV
+        function exportToCSV() {
+            if (attendanceLogs.length === 0) {
+                showToast("ពុំមានទិន្នន័យសម្រាប់ Export ឡើយ!", "warning");
+                return;
+            }
+
+            let csv = "\uFEFFកាលបរិច្ឆេទ,ម៉ោង,អត្តលេខ,ឈ្មោះសិស្ស,ថ្នាក់,មុខវិជ្ជា,គ្រូបង្រៀន,ស្ថានភាព\n";
+            attendanceLogs.forEach(row => {
+                csv += `"${row.date}","${row.time}","${row.student_id}","${row.student_name}","${row.class_name}","${row.subject}","${row.teacher}","${row.status}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `attendance_export_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("ទាញយក CSV រួចរាល់!", "success");
+        }
+
+        function clearHistory() {
+            if (confirm("តើអ្នកពិតជាចង់លុបទិន្នន័យវត្តមានទាំងអស់មែនទេ?")) {
+                attendanceLogs = [];
+                localStorage.removeItem('qr_class_attendance_logs');
+                renderLogs();
+                showToast("បានលុបទិន្នន័យវត្តមានរួចរាល់", "info");
+            }
+        }
+
+        // Teacher Directory Actions
+        function addTeacherToDirectory() {
+            const name = document.getElementById('dirTeachName').value.trim();
+            const subject = document.getElementById('dirTeachSubject').value;
+            const phone = document.getElementById('dirTeachPhone').value.trim();
+
+            if (!name) {
+                showToast("សូមបញ្ចូលឈ្មោះគ្រូបង្រៀន!", "warning");
+                return;
+            }
+
+            teacherDirectory.push({ id: Date.now(), name, subject, phone });
+            localStorage.setItem('qr_teacher_directory', JSON.stringify(teacherDirectory));
+            renderTeachersDirectory();
+
+            document.getElementById('dirTeachName').value = '';
+            document.getElementById('dirTeachPhone').value = '';
+            showToast("បានបន្ថែមឈ្មោះគ្រូបង្រៀនជោគជ័យ!", "success");
+        }
+
+        function deleteTeacherFromDirectory(id) {
+            teacherDirectory = teacherDirectory.filter(t => t.id !== id);
+            localStorage.setItem('qr_teacher_directory', JSON.stringify(teacherDirectory));
+            renderTeachersDirectory();
+            showToast("បានលុបឈ្មោះគ្រូបង្រៀន", "info");
+        }
+
+        function renderTeachersDirectory() {
+            const tbody = document.getElementById('teachersTableBody');
+            if (!tbody) return;
+
+            if (teacherDirectory.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-400">ពុំមានទិន្នន័យគ្រូបង្រៀនឡើយ</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = teacherDirectory.map(t => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-bold text-slate-800">${t.name}</td>
+                    <td class="px-4 py-3 font-medium text-indigo-900">${t.subject}</td>
+                    <td class="px-4 py-3 font-mono text-slate-600">${t.phone || '-'}</td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="deleteTeacherFromDirectory(${t.id})" class="text-rose-600 hover:text-rose-800 p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Class Bot Actions
+        function saveGlobalBotConfig() {
+            globalBotToken = document.getElementById('globalBotToken').value.trim();
+            globalChatId = document.getElementById('globalChatId').value.trim();
+
+            localStorage.setItem('qr_class_global_bot_token', globalBotToken);
+            localStorage.setItem('qr_class_global_chat_id', globalChatId);
+
+            updateSessionInfo(false);
+            showToast("បានរក្សាទុក Global Telegram Bot", "success");
+        }
+
+        function saveClassBotConfig(e) {
+            e.preventDefault();
+            const cls = document.getElementById('cfgClassSelect').value;
+            const token = document.getElementById('cfgClassBotToken').value.trim();
+            const chatId = document.getElementById('cfgClassChatId').value.trim();
+
+            classBots[cls] = { token, chat_id: chatId };
+            localStorage.setItem('qr_class_bots', JSON.stringify(classBots));
+
+            renderClassBotTable();
+            updateSessionInfo(false);
+
+            document.getElementById('cfgClassBotToken').value = '';
+            document.getElementById('cfgClassChatId').value = '';
+
+            showToast(`បានរក្សាទុក Bot សម្រាប់ ${cls}!`, "success");
+        }
+
+        function deleteClassBotConfig(cls) {
+            delete classBots[cls];
+            localStorage.setItem('qr_class_bots', JSON.stringify(classBots));
+            renderClassBotTable();
+            updateSessionInfo(false);
+            showToast(`បានលុបការកំណត់ Bot របស់ ${cls}`, "info");
+        }
+
+        function renderClassBotTable() {
+            const tbody = document.getElementById('classBotTableBody');
+            if (!tbody) return;
+
+            const keys = Object.keys(classBots);
+            if (keys.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-400">ពុំទាន់មានការកំណត់ Bot តាមថ្នាក់ឡើយ</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = keys.map(cls => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-bold text-slate-800">${cls}</td>
+                    <td class="px-4 py-3 font-mono text-slate-500 text-[11px]">${classBots[cls].token.slice(0, 15)}...</td>
+                    <td class="px-4 py-3 font-mono text-slate-600">${classBots[cls].chat_id}</td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="deleteClassBotConfig('${cls}')" class="text-rose-600 hover:text-rose-800 p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // QR Generator
+        function generateQRCard() {
+            const id = document.getElementById('genStudentId').value.trim() || 'STU-1001';
+            const name = document.getElementById('genStudentName').value.trim() || 'សួន សុខា';
+            const cls = document.getElementById('genStudentClass').value;
+
+            document.getElementById('qrLabelText').innerText = `${id} | ${name}`;
+            document.getElementById('qrLabelClass').innerText = cls;
+
+            const displayContainer = document.getElementById('qrcodeDisplay');
+            displayContainer.innerHTML = '';
+
+            new QRCode(displayContainer, {
+                text: JSON.stringify({ student_id: id, student_name: name, class_name: cls }),
+                width: 140,
+                height: 140
+            });
+        }
+
+        function printQRCode() {
+            window.print();
+        }
+
+        function saveGasUrlMain() {
+            configGasUrl = document.getElementById('gasUrlMainInput').value.trim();
+            localStorage.setItem('qr_attendance_gas_url', configGasUrl);
+            showToast("បានរក្សាទុក Google Apps Script URL", "success");
+        }
+
+        function copyGasCode() {
+            const codeText = document.getElementById('gasCodeText').innerText;
+            const tempElem = document.createElement('textarea');
+            tempElem.value = codeText;
+            document.body.appendChild(tempElem);
+            tempElem.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempElem);
+            showToast("បានចម្លងកូដ Google Apps Script រួចរាល់!", "success");
+        }
+
+        // Toast Notification Helper
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            let bgClass = "bg-slate-800 text-white";
+            if (type === "success") bgClass = "bg-emerald-600 text-white";
+            if (type === "error") bgClass = "bg-rose-600 text-white";
+            if (type === "warning") bgClass = "bg-amber-600 text-white";
+
+            toast.className = `${bgClass} text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all duration-300 transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${message}`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // System Backup (Export All Data & Settings to JSON)
+        function exportSystemBackup() {
+            const backupData = {
+                app: "QR_ATTENDANCE_SYSTEM",
+                version: "2.1",
+                export_date: new Date().toISOString(),
+                gas_url: localStorage.getItem('qr_attendance_gas_url') || '',
+                global_bot_token: localStorage.getItem('qr_class_global_bot_token') || '',
+                global_chat_id: localStorage.getItem('qr_class_global_chat_id') || '',
+                class_bots: JSON.parse(localStorage.getItem('qr_class_bots') || '{}'),
+                sched_enabled: localStorage.getItem('qr_sched_enabled') !== 'false',
+                subject_schedules: JSON.parse(localStorage.getItem('qr_subject_schedules') || '[]'),
+                student_directory: JSON.parse(localStorage.getItem('qr_student_directory') || '[]'),
+                teacher_directory: JSON.parse(localStorage.getItem('qr_teacher_directory') || '[]'),
+                attendance_logs: JSON.parse(localStorage.getItem('qr_class_attendance_logs') || '[]')
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `qr_attendance_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+
+            showToast("ទាញយកការបម្រុងទុកទិន្នន័យ (Backup JSON) រួចរាល់!", "success");
+        }
+
+        // System Restore (Import JSON Data & Settings)
+        function importSystemBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (!data.app || data.app !== "QR_ATTENDANCE_SYSTEM") {
+                        showToast("ឯកសារបម្រុងទុកមិនត្រឹមត្រូវឡើយ!", "error");
+                        return;
+                    }
+
+                    if (confirm("តើអ្នកពិតជាចង់ស្ដារទិន្នន័យ (Restore) នេះមែនទេ? ទិន្នន័យចាស់ៗទាំងអស់នឹងត្រូវជំនួសដោយទិន្នន័យថ្មីនេះ!")) {
+                        if (data.gas_url !== undefined) localStorage.setItem('qr_attendance_gas_url', data.gas_url);
+                        if (data.global_bot_token !== undefined) localStorage.setItem('qr_class_global_bot_token', data.global_bot_token);
+                        if (data.global_chat_id !== undefined) localStorage.setItem('qr_class_global_chat_id', data.global_chat_id);
+                        if (data.class_bots !== undefined) localStorage.setItem('qr_class_bots', JSON.stringify(data.class_bots));
+                        if (data.sched_enabled !== undefined) localStorage.setItem('qr_sched_enabled', data.sched_enabled);
+                        if (data.subject_schedules !== undefined) localStorage.setItem('qr_subject_schedules', JSON.stringify(data.subject_schedules));
+                        if (data.student_directory !== undefined) localStorage.setItem('qr_student_directory', JSON.stringify(data.student_directory));
+                        if (data.teacher_directory !== undefined) localStorage.setItem('qr_teacher_directory', JSON.stringify(data.teacher_directory));
+                        if (data.attendance_logs !== undefined) localStorage.setItem('qr_class_attendance_logs', JSON.stringify(data.attendance_logs));
+
+                        // Reload Local State Variables
+                        configGasUrl = localStorage.getItem('qr_attendance_gas_url') || '';
+                        globalBotToken = localStorage.getItem('qr_class_global_bot_token') || '';
+                        globalChatId = localStorage.getItem('qr_class_global_chat_id') || '';
+                        classBots = JSON.parse(localStorage.getItem('qr_class_bots') || '{}');
+                        autoScheduleEnabled = localStorage.getItem('qr_sched_enabled') !== 'false';
+                        subjectSchedules = JSON.parse(localStorage.getItem('qr_subject_schedules') || '[]');
+                        studentDirectory = JSON.parse(localStorage.getItem('qr_student_directory') || '[]');
+                        teacherDirectory = JSON.parse(localStorage.getItem('qr_teacher_directory') || '[]');
+                        attendanceLogs = JSON.parse(localStorage.getItem('qr_class_attendance_logs') || '[]');
+
+                        // Update Inputs & Views
+                        document.getElementById('gasUrlMainInput').value = configGasUrl;
+                        document.getElementById('globalBotToken').value = globalBotToken;
+                        document.getElementById('globalChatId').value = globalChatId;
+                        document.getElementById('enableAutoSchedule').checked = autoScheduleEnabled;
+
+                        renderScheduleList();
+                        renderStudentsDirectory();
+                        renderTeachersDirectory();
+                        renderClassBotTable();
+                        onClassOrTimeChanged();
+                        renderLogs();
+
+                        showToast("ស្ដារទិន្នន័យ (Restore) ជោគជ័យ!", "success");
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast("មានបញ្ហាក្នុងការអានឯកសារ JSON!", "error");
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
