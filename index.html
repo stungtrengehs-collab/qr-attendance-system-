@@ -25,7 +25,26 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col text-slate-800">
+<body class="min-h-screen flex flex-col text-slate-800 relative">
+
+    <!-- Screen Lock Overlay -->
+    <div id="screen-lock-overlay" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[100] hidden flex-col items-center justify-center p-4">
+        <div class="bg-white/10 p-8 rounded-3xl border border-white/20 shadow-2xl max-w-sm w-full text-center space-y-6 text-white">
+            <div class="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center mx-auto text-3xl border border-amber-500/30">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold">ប្រព័ន្ធត្រូវបានចាក់សោ</h2>
+                <p class="text-xs text-slate-300 mt-1">សូមបញ្ចូលលេខកូដសម្ងាត់ដើម្បីបើកប្រើប្រាស់</p>
+            </div>
+            <div>
+                <input type="password" id="lock-pin-input" maxlength="6" placeholder="• • • •" class="w-full text-center tracking-widest text-2xl font-bold py-3 bg-white/10 border border-white/30 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+            </div>
+            <button onclick="unlockScreen()" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-3 rounded-2xl shadow-lg transition text-sm">
+                ដោះសោប្រព័ន្ធ
+            </button>
+        </div>
+    </div>
 
     <!-- Top Header -->
     <header class="bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-800 text-white shadow-lg no-print">
@@ -664,54 +683,54 @@
                     <p class="text-xs font-semibold text-teal-600 mt-1" id="t-rec-number">#TV-000</p>
                 </div>
 
-                <div class="space-y-1 text-xs">
-                    <div class="flex justify-between"><span>ថ្ងៃទូទាត់:</span><strong id="t-rec-date">-</strong></div>
-                    <div class="flex justify-between"><span>ឈ្មោះលោកគ្រូ/អ្នកគ្រូ:</span><strong id="t-rec-name" class="text-sm text-slate-800">-</strong></div>
-                    <div class="flex justify-between"><span>មុខវិជ្ជា/ថ្នាក់:</span><span id="t-rec-subject">-</span></div>
-                    <div class="flex justify-between text-indigo-700 font-medium"><span>ចំនួនម៉ោង & តម្លៃ/ម៉ោង:</span><span id="t-rec-hours-info">-</span></div>
-                </div>
-
-                <div class="border-t border-b py-2 space-y-1">
-                    <div class="flex justify-between text-xs"><span>ប្រាក់ខែ/ម៉ោងដើម:</span><span id="t-rec-base" class="font-semibold">0 ៛</span></div>
-                    <div class="flex justify-between text-xs text-emerald-600"><span>ប្រាក់លើកទឹកចិត្ត (+):</span><span id="t-rec-bonus" class="font-semibold">0 ៛</span></div>
-                    <div class="flex justify-between text-xs text-rose-600"><span>ប្រាក់កាត់ទុក (-):</span><span id="t-rec-deduct" class="font-semibold">0 ៛</span></div>
-                    <div class="flex justify-between text-sm font-bold pt-1 border-t text-teal-700"><span>ប្រាក់ទទួលបានសុទ្ធ:</span><span id="t-rec-net">0 ៛</span></div>
-                </div>
-
-                <div class="grid grid-cols-2 text-center text-xs pt-4 gap-4">
-                    <div>
-                        <p class="text-slate-400 mb-8">ហត្ថលេខាគ្រូបង្រៀន</p>
-                        <p class="border-t pt-1 font-semibold text-slate-600" id="t-rec-sign-name">-</p>
-                    </div>
-                    <div>
-                        <p class="text-slate-400 mb-8">ហត្ថលេខាអ្នករៀបចំ</p>
-                        <p class="border-t pt-1 font-semibold text-slate-600">បេឡា / រដ្ឋបាល</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex gap-2 pt-2 no-print">
-                <button onclick="window.print()" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-2 rounded-xl text-sm font-semibold transition">
-                    <i class="fa-solid fa-print"></i> បោះពុម្ពបង្កាន់ដៃ
-                </button>
-                <button onclick="closeTeacherModal()" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold">
-                    បិទ
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Application Logic Script -->
-    <script type="module">
+        <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let app = null;
         let db = null;
         let auth = null;
         let userId = 'default-user';
         let appId = 'islamichighschoolfinance';
+
+        let systemPin = localStorage.getItem('sys_pin') || '1234';
+
+        window.lockScreen = function() {
+            const overlay = document.getElementById('screen-lock-overlay');
+            const pinInput = document.getElementById('lock-pin-input');
+            if (pinInput) pinInput.value = '';
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+        };
+
+        window.unlockScreen = function() {
+            const inputPin = document.getElementById('lock-pin-input').value;
+            if (inputPin === systemPin) {
+                const overlay = document.getElementById('screen-lock-overlay');
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+                showToast('ដោះសោប្រព័ន្ធបានជោគជ័យ');
+            } else {
+                alert('លេខកូដសម្ងាត់មិនត្រឹមត្រូវឡើយ!');
+            }
+        };
+
+        window.openChangePinModal = function() {
+            const oldPin = prompt('សូមបញ្ចូលលេខកូដសម្ងាត់ចាស់ (ដើមគឺ 1234):');
+            if (oldPin === systemPin) {
+                const newPin = prompt('សូមបញ្ចូលលេខកូដសម្ងាត់ថ្មី (៤ ខ្ទង់):');
+                if (newPin && newPin.trim().length >= 4) {
+                    systemPin = newPin.trim();
+                    localStorage.setItem('sys_pin', systemPin);
+                    showToast('បានផ្លាស់ប្តូរលេខកូដសម្ងាត់រួចរាល់');
+                } else {
+                    alert('លេខកូដសម្ងាត់ត្រូវមានយ៉ាងតិច ៤ ខ្ទង់!');
+                }
+            } else if (oldPin !== null) {
+                alert('លេខកូដសម្ងាត់ចាស់មិនត្រឹមត្រូវ!');
+            }
+        };
 
         // 🔗 Firebase Configuration for IslamicHighSchoolFinance
         const customFirebaseConfig = {
@@ -949,38 +968,42 @@
             try {
                 const res = await signInAnonymously(auth);
                 userId = res.user?.uid || 'default-user';
-                await fetchAllData();
+                setupRealtimeListeners();
             } catch (err) {
-                console.warn("Firestore auth error, switching to local storage mode:", err);
+                console.warn("Firebase auth error, switching to local storage mode:", err);
                 loadFromLocalStorage();
             }
         }
 
-        async function fetchAllData() {
+        // មុខងារ Real-Time Sync ឆ្លងឧបករណ៍ (Real-time listener from phone A to B)
+        function setupRealtimeListeners() {
             if (!userId || !db) return;
-            try {
-                const txSnap = await getDocs(collection(db, 'artifacts', appId, 'users', userId, 'transactions'));
+
+            // 1. តាមដានចំណូល-ចំណាយ (Transactions) ភ្លាមៗ
+            onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'transactions'), (snapshot) => {
                 transactions = [];
-                txSnap.forEach(doc => transactions.push(doc.data()));
+                snapshot.forEach(doc => transactions.push(doc.data()));
                 transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                const invSnap = await getDocs(collection(db, 'artifacts', appId, 'users', userId, 'invoices'));
-                invoices = [];
-                invSnap.forEach(doc => invoices.push(doc.data()));
-
-                const tvSnap = await getDocs(collection(db, 'artifacts', appId, 'users', userId, 'teacher_vouchers'));
-                teacherVouchers = [];
-                tvSnap.forEach(doc => teacherVouchers.push(doc.data()));
-
-                if (transactions.length === 0 && invoices.length === 0) {
-                    loadDefaultSeedData();
-                }
-
                 refreshUI();
-            } catch (e) {
-                console.warn("Error fetching data from Firestore, switching to local storage mode:", e);
-                loadFromLocalStorage();
-            }
+            }, (err) => console.error("Transactions Listener Error:", err));
+
+            // 2. តាមដានវិក្កយបត្រ (Invoices) ភ្លាមៗ
+            onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'invoices'), (snapshot) => {
+                invoices = [];
+                snapshot.forEach(doc => invoices.push(doc.data()));
+                refreshUI();
+            }, (err) => console.error("Invoices Listener Error:", err));
+
+            // 3. តាមដានបង្កាន់ដៃប្រាក់ខែគ្រូ (Teacher Vouchers) ភ្លាមៗ
+            onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'teacher_vouchers'), (snapshot) => {
+                teacherVouchers = [];
+                snapshot.forEach(doc => teacherVouchers.push(doc.data()));
+                refreshUI();
+            }, (err) => console.error("Teacher Vouchers Listener Error:", err));
+        }
+
+        async function fetchAllData() {
+            setupRealtimeListeners();
         }
 
         async function saveDataToFirestore(collName, docId, data) {
@@ -1325,14 +1348,68 @@
             const [year, month] = picker.value.split('-');
             document.getElementById('rpt-selected-month').textContent = `${month}/${year}`;
 
-            const mIncome = transactions.filter(t => t.type === 'income' && t.date.startsWith(`${year}-${month}`)).reduce((s, t) => s + t.amount, 0);
-            const mExpense = transactions.filter(t => t.type === 'expense' && t.date.startsWith(`${year}-${month}`)).reduce((s, t) => s + t.amount, 0);
+            const monthTx = transactions.filter(t => t.date && t.date.startsWith(`${year}-${month}`));
+
+            const mIncome = monthTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+            const mExpense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
             const mTuition = invoices.filter(i => i.date && i.date.startsWith(`${year}-${month}`)).reduce((s, i) => s + (i.paid || 0), 0);
 
             document.getElementById('rpt-income').textContent = formatMoney(mIncome);
             document.getElementById('rpt-expense').textContent = formatMoney(mExpense);
             document.getElementById('rpt-tuition').textContent = formatMoney(mTuition);
             document.getElementById('rpt-net').textContent = formatMoney(mIncome - mExpense);
+
+            // 1. Render ចំណូលតាមប្រភេទ (Monthly Income Breakdown)
+            const incomeCatMap = {};
+            monthTx.filter(t => t.type === 'income').forEach(t => {
+                const cat = t.category || 'ចំណូលផ្សេងៗ';
+                incomeCatMap[cat] = (incomeCatMap[cat] || 0) + t.amount;
+            });
+
+            const incomeTbody = document.getElementById('rpt-income-breakdown');
+            if (incomeTbody) {
+                incomeTbody.innerHTML = '';
+                const incomeKeys = Object.keys(incomeCatMap);
+                if (incomeKeys.length === 0) {
+                    incomeTbody.innerHTML = `<tr><td colspan="2" class="text-center py-3 text-slate-400 text-xs">មិនមានទិន្នន័យចំណូលក្នុងខែនេះទេ</td></tr>`;
+                } else {
+                    incomeKeys.forEach(cat => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+                        tr.innerHTML = `
+                            <td class="p-2 text-xs font-semibold text-slate-700">${cat}</td>
+                            <td class="p-2 text-xs font-bold text-right text-emerald-600">${formatMoney(incomeCatMap[cat])}</td>
+                        `;
+                        incomeTbody.appendChild(tr);
+                    });
+                }
+            }
+
+            // 2. Render ចំណាយតាមប្រភេទ (Monthly Expense Breakdown)
+            const expenseCatMap = {};
+            monthTx.filter(t => t.type === 'expense').forEach(t => {
+                const cat = t.category || 'ចំណាយផ្សេងៗ';
+                expenseCatMap[cat] = (expenseCatMap[cat] || 0) + t.amount;
+            });
+
+            const expenseTbody = document.getElementById('rpt-expense-breakdown');
+            if (expenseTbody) {
+                expenseTbody.innerHTML = '';
+                const expenseKeys = Object.keys(expenseCatMap);
+                if (expenseKeys.length === 0) {
+                    expenseTbody.innerHTML = `<tr><td colspan="2" class="text-center py-3 text-slate-400 text-xs">មិនមានទិន្នន័យចំណាយក្នុងខែនេះទេ</td></tr>`;
+                } else {
+                    expenseKeys.forEach(cat => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+                        tr.innerHTML = `
+                            <td class="p-2 text-xs font-semibold text-slate-700">${cat}</td>
+                            <td class="p-2 text-xs font-bold text-right text-rose-600">${formatMoney(expenseCatMap[cat])}</td>
+                        `;
+                        expenseTbody.appendChild(tr);
+                    });
+                }
+            }
         };
 
         window.showToast = function(msg) {
