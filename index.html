@@ -11,9 +11,9 @@
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- QRCode.js for Student ID Cards -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
     <!-- HTML5-QRCode Scanner Library for Live Camera QR Scanning -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" defer></script>
     <!-- Firebase App & Realtime Database SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -278,9 +278,9 @@
                 'នាយកសាលា': ['dashboard', 'directory', 'classes', 'students', 'teachers', 'attendance', 'subjects', 'curriculum', 'grades', 'finance', 'library', 'inventory', 'staff', 'reports', 'users'],
                 'អ្នកគ្រប់គ្រង': ['dashboard', 'directory', 'classes', 'students', 'teachers', 'attendance', 'subjects', 'curriculum', 'grades', 'library', 'inventory', 'reports'],
                 'គ្រូបង្រៀន': ['dashboard', 'directory', 'classes', 'students', 'attendance', 'subjects', 'curriculum', 'grades', 'reports'],
-                'គណនេយ្យករ': ['dashboard', 'directory', 'students', 'finance', 'staff', 'reports'],
-                'បណ្ណារក្ស': ['dashboard', 'directory', 'students', 'library', 'reports'],
-                'បុគ្គលិក': ['dashboard', 'directory', 'attendance', 'inventory']
+                'គណនេយ្យករ': ['dashboard', 'finance', 'staff', 'reports'],
+                'បណ្ណារក្ស': ['dashboard', 'library', 'reports'],
+                'បុគ្គលិក': ['dashboard', 'inventory', 'reports']
             },
             curriculum: [],
             classes: [],
@@ -288,7 +288,7 @@
             teachers: [],
             subjects: [
                 { id: 'SUB-01', code: 'MATH', nameKh: 'គណិតវិទ្យា', nameEn: 'Mathematics', grades: '7-12', maxScore: 125 },
-                { id: 'SUB-02', code: 'KHMER', nameKh: 'អក្សរសាស្ត្រខ្មែរ', nameEn: 'Khmer Literature', grades: '7-12', maxScore: 100 },
+                { id: 'SUB-02', code: 'KHM', nameKh: 'អក្សរសាស្ត្រខ្មែរ', nameEn: 'Khmer Literature', grades: '7-12', maxScore: 100 },
                 { id: 'SUB-03', code: 'PHYS', nameKh: 'រូបវិទ្យា', nameEn: 'Physics', grades: '7-12', maxScore: 75 },
                 { id: 'SUB-04', code: 'CHEM', nameKh: 'គីមីវិទ្យា', nameEn: 'Chemistry', grades: '7-12', maxScore: 75 },
                 { id: 'SUB-05', code: 'ENG', nameKh: 'ភាសាអង់គ្លេស', nameEn: 'English', grades: '7-12', maxScore: 50 }
@@ -302,21 +302,60 @@
             inventory: [],
             staff: [],
             auditLogs: [
-                { id: 'LOG-01', timestamp: new Date().toLocaleString('km-KH'), user: 'admin', action: 'ចាប់ផ្តើមប្រព័ន្ធ (System Initialized)', details: 'បានសម្អាតទិន្នន័យគំរូទាំងអស់រួចរាល់' }
+                { id: 'LOG-01', timestamp: '2026-11-14 08:00:00', user: 'System', action: 'ចាប់ផ្តើមប្រព័ន្ធ', details: 'ប្រព័ន្ធគ្រប់គ្រងសាលារៀនបានរៀបចំរួចរាល់' }
             ]
         };
 
-        // Load or Initialize DB
-        let db = JSON.parse(localStorage.getItem(DB_KEY)) || JSON.parse(JSON.stringify(defaultDatabase));
+        // Load or Initialize DB with safe normalization (prevents undefined arrays from Firebase RTDB)
+        function normalizeDB(raw) {
+            const base = JSON.parse(JSON.stringify(defaultDatabase));
+            if (!raw || typeof raw !== 'object') return base;
+            return {
+                settings: { ...base.settings, ...(raw.settings || {}) },
+                users: Array.isArray(raw.users) && raw.users.length > 0 ? raw.users : base.users,
+                permissions: { ...base.permissions, ...(raw.permissions || {}) },
+                curriculum: Array.isArray(raw.curriculum) ? raw.curriculum : [],
+                classes: Array.isArray(raw.classes) ? raw.classes : [],
+                students: Array.isArray(raw.students) ? raw.students : [],
+                teachers: Array.isArray(raw.teachers) ? raw.teachers : [],
+                subjects: Array.isArray(raw.subjects) && raw.subjects.length > 0 ? raw.subjects : base.subjects,
+                schedules: Array.isArray(raw.schedules) ? raw.schedules : [],
+                attendance: Array.isArray(raw.attendance) ? raw.attendance : [],
+                grades: Array.isArray(raw.grades) ? raw.grades : [],
+                finance: Array.isArray(raw.finance) ? raw.finance : [],
+                library: Array.isArray(raw.library) ? raw.library : [],
+                borrowRecords: Array.isArray(raw.borrowRecords) ? raw.borrowRecords : [],
+                inventory: Array.isArray(raw.inventory) ? raw.inventory : [],
+                staff: Array.isArray(raw.staff) ? raw.staff : [],
+                auditLogs: Array.isArray(raw.auditLogs) ? raw.auditLogs : base.auditLogs
+            };
+        }
+
+        let db = normalizeDB(JSON.parse(localStorage.getItem(DB_KEY)));
         let currentUser = null;
         let currentLang = 'km'; // 'km' or 'en'
         let currentTab = 'dashboard';
         let firebaseAppInstance = null;
         let rtdbRef = null;
 
-        // Initialize Firebase on load if config exists in localStorage
+        // Default Permanent Firebase Config
+        const PERMANENT_FIREBASE_CONFIG = {
+            "apiKey": "AIzaSyAD-2SU0FuRVl7i5hJ7I8ikerBnJMooOQQ",
+            "authDomain": "school-management-system-4ea14.firebaseapp.com",
+            "databaseURL": "https://school-management-system-4ea14-default-rtdb.asia-southeast1.firebasedatabase.app",
+            "projectId": "school-management-system-4ea14",
+            "storageBucket": "school-management-system-4ea14.appspot.com",
+            "messagingSenderId": "686671411595",
+            "appId": "1:686671411595:web:d0b386d22af2e0c761178e",
+            "measurementId": "G-4WBDKSHF2P"
+        };
+
+        // Initialize Firebase on load permanently
         window.addEventListener('DOMContentLoaded', () => {
             try {
+                if (!localStorage.getItem('FIREBASE_CONFIG_JSON')) {
+                    localStorage.setItem('FIREBASE_CONFIG_JSON', JSON.stringify(PERMANENT_FIREBASE_CONFIG));
+                }
                 initFirebaseFromStorage();
             } catch (e) {
                 console.error("Initialization error:", e);
@@ -324,8 +363,7 @@
         });
 
         function initFirebaseFromStorage() {
-            const savedConfig = localStorage.getItem('FIREBASE_CONFIG_JSON');
-            if (!savedConfig) return;
+            const savedConfig = localStorage.getItem('FIREBASE_CONFIG_JSON') || JSON.stringify(PERMANENT_FIREBASE_CONFIG);
             try {
                 const config = JSON.parse(savedConfig);
                 if (typeof firebase !== 'undefined') {
@@ -341,15 +379,19 @@
                         try {
                             const cloudData = snapshot.val();
                             if (cloudData && cloudData.settings) {
-                                db = cloudData;
+                                db = normalizeDB(cloudData);
                                 localStorage.setItem(DB_KEY, JSON.stringify(db));
                                 if (currentUser) {
                                     updateHeaderInfo();
                                     navigateTo(currentTab);
                                 }
                             }
-                        } catch (err) {}
-                    }, (err) => {});
+                        } catch (err) {
+                            console.error('Realtime sync parse error:', err);
+                        }
+                    }, (err) => {
+                        console.error('Firebase listener error:', err);
+                    });
                     console.log('Firebase Cloud Sync initialized successfully.');
                 }
             } catch (err) {
@@ -358,7 +400,7 @@
         }
 
         function openFirebaseConfigModal() {
-            const savedConfig = localStorage.getItem('FIREBASE_CONFIG_JSON') || '';
+            const savedConfig = localStorage.getItem('FIREBASE_CONFIG_JSON') || JSON.stringify(PERMANENT_FIREBASE_CONFIG, null, 2);
             openModal('ភ្ជាប់ Firebase Realtime Database (ពីកូដ Config របស់អ្នក)', `
                 <div class="space-y-4 text-sm">
                     <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
@@ -2465,7 +2507,7 @@
             setTimeout(() => {
                 db.teachers.forEach((t, idx) => {
                     const el = document.getElementById(`allTchQr_${idx}`);
-                    if (el) {
+                    if (el && typeof QRCode !== 'undefined') {
                         new QRCode(el, { text: t.id, width: 75, height: 75 });
                     }
                 });
@@ -2526,250 +2568,8 @@
             setTimeout(() => {
                 yearStudents.forEach((s, idx) => {
                     const el = document.getElementById(`allStuQr_${idx}`);
-                    if (el) {
+                    if (el && typeof QRCode !== 'undefined') {
                         new QRCode(el, { text: s.id, width: 75, height: 75 });
-                    }
-                });
-            }, 100);
-        }
-
-        function printAllStudentsQRCodes() {
-            const yearStudents = db.students.filter(s => s.year === db.settings.currentYear);
-            if (yearStudents.length === 0) {
-                showToast('មិនទាន់មានទិន្នន័យសិស្សសម្រាប់បោះពុម្ពទេ!', 'error');
-                return;
-            }
-            const cardsHTML = yearStudents.map((s, idx) => {
-                const avatarHTML = s.photo
-                    ? `<img src="${s.photo}" alt="${s.nameKh}" class="w-20 h-20 mx-auto rounded-2xl object-cover border-2 border-primary-200 shadow-xs">`
-                    : `<div class="w-20 h-20 mx-auto rounded-2xl bg-primary-50 border-2 border-primary-200 flex items-center justify-center text-3xl font-bold text-primary-600">${s.nameKh.charAt(0)}</div>`;
-
-                return `
-                    <div class="id-card-box w-[300px] h-[420px] mx-auto bg-white border-2 border-blue-600 rounded-2xl overflow-hidden shadow-md text-center flex flex-col justify-between p-4 box-border" style="border-color: #2563eb; border-radius: 16px; box-sizing: border-box;">
-                        <div>
-                            <div class="bg-primary-700 text-white py-2 px-3 rounded-xl text-center mb-3" style="background-color: #1d4ed8 !important; color: #ffffff !important;">
-                                <p class="text-[9px] opacity-95">ព្រះរាជាណាចក្រកម្ពុជា</p>
-                                <h4 class="font-bold text-xs leading-snug">${db.settings.schoolNameKh}</h4>
-                                <p class="text-[8px] text-primary-200">បណ្ណសម្គាល់ខ្លួនសិស្ស (STUDENT ID CARD)</p>
-                            </div>
-                            <div class="space-y-2">
-                                ${avatarHTML}
-                                <div>
-                                    <h3 class="text-base font-bold text-slate-800 leading-tight">${s.nameKh}</h3>
-                                    <p class="text-[11px] font-semibold text-slate-500 uppercase">${s.nameEn || ''}</p>
-                                </div>
-                            </div>
-                            <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1 mt-2 text-center" style="background-color: #f8fafc !important;">
-                                <p>អត្តលេខ: <span class="font-mono font-bold text-primary-700" style="color: #2563eb !important;">${s.id}</span></p>
-                                <p>ភេទ: <strong>${s.gender}</strong> | ថ្នាក់ទី: <strong>${s.room || '-'}</strong></p>
-                                <p>ឆ្នាំសិក្សា: <strong>${s.year}</strong></p>
-                            </div>
-                        </div>
-                        <div class="flex flex-col items-center justify-center border-t border-slate-100 pt-2">
-                            <div id="allStuQr_${idx}" class="flex justify-center"></div>
-                            <p class="text-[9px] text-slate-400 mt-1">ស្កេន QR Code ដើម្បីកត់វត្តមាន</p>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            openModal('បោះពុម្ពកាត QR Code សិស្សទាំងអស់', `
-                <div id="allStudentsQrPrintable" class="bulk-print-grid grid grid-cols-1 sm:grid-cols-2 gap-4 p-2">
-                    ${cardsHTML}
-                </div>
-                <div class="flex justify-center gap-3 mt-4 pt-3 border-t no-print">
-                    <button onclick="printHTML(document.getElementById('allStudentsQrPrintable').outerHTML)" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-md flex items-center gap-2">
-                        <i class="fas fa-print"></i> បោះពុម្ពទាំងអស់ (${yearStudents.length} នាក់)
-                    </button>
-                </div>
-            `);
-
-            setTimeout(() => {
-                yearStudents.forEach((s, idx) => {
-                    const el = document.getElementById(`allStuQr_${idx}`);
-                    if (el) {
-                        new QRCode(el, { text: s.id, width: 85, height: 85 });
-                    }
-                });
-            }, 100);
-        }
-
-        function printAllTeachersQRCodes() {
-            if (!db.teachers || db.teachers.length === 0) {
-                showToast('មិនទាន់មានទិន្នន័យគ្រូបង្រៀនសម្រាប់បោះពុម្ពទេ!', 'error');
-                return;
-            }
-            const cardsHTML = db.teachers.map((t, idx) => {
-                const avatarHTML = t.photo
-                    ? `<img src="${t.photo}" alt="${t.nameKh}" class="w-20 h-20 mx-auto rounded-2xl object-cover border-2 border-emerald-200 shadow-xs">`
-                    : `<div class="w-20 h-20 mx-auto rounded-2xl bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center text-3xl font-bold text-emerald-600">${t.nameKh.charAt(0)}</div>`;
-
-                return `
-                    <div class="id-card-box w-[300px] h-[420px] mx-auto bg-white border-2 border-emerald-600 rounded-2xl overflow-hidden shadow-md text-center flex flex-col justify-between p-4 box-border" style="border-color: #059669; border-radius: 16px; box-sizing: border-box;">
-                        <div>
-                            <div class="bg-emerald-700 text-white py-2 px-3 rounded-xl text-center mb-3" style="background-color: #047857 !important; color: #ffffff !important;">
-                                <p class="text-[9px] opacity-95">ព្រះរាជាណាចក្រកម្ពុជា</p>
-                                <h4 class="font-bold text-xs leading-snug">${db.settings.schoolNameKh}</h4>
-                                <p class="text-[8px] text-emerald-200">បណ្ណសម្គាល់ខ្លួនគ្រូបង្រៀន (TEACHER ID CARD)</p>
-                            </div>
-                            <div class="space-y-2">
-                                ${avatarHTML}
-                                <div>
-                                    <h3 class="text-base font-bold text-slate-800 leading-tight">${t.nameKh}</h3>
-                                    <p class="text-[11px] font-semibold text-slate-500 uppercase">${t.nameEn || ''}</p>
-                                </div>
-                            </div>
-                            <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1 mt-2 text-center" style="background-color: #f8fafc !important;">
-                                <p>អត្តលេខ: <span class="font-mono font-bold text-emerald-700" style="color: #059669 !important;">${t.id}</span></p>
-                                <p class="truncate">មុខវិជ្ជា: <strong>${t.subject || '-'}</strong></p>
-                                <p>ប្រចាំថ្នាក់: <strong>${t.homeroom || 'គ្មាន'}</strong></p>
-                            </div>
-                        </div>
-                        <div class="flex flex-col items-center justify-center border-t border-slate-100 pt-2">
-                            <div id="allTchQr_${idx}" class="flex justify-center"></div>
-                            <p class="text-[9px] text-slate-400 mt-1">ស្កេន QR Code ដើម្បីកត់វត្តមាន</p>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            openModal('បោះពុម្ពកាត QR Code គ្រូបង្រៀនទាំងអស់', `
-                <div id="allTeachersQrPrintable" class="bulk-print-grid grid grid-cols-1 sm:grid-cols-2 gap-4 p-2">
-                    ${cardsHTML}
-                </div>
-                <div class="flex justify-center gap-3 mt-4 pt-3 border-t no-print">
-                    <button onclick="printHTML(document.getElementById('allTeachersQrPrintable').outerHTML)" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-md flex items-center gap-2">
-                        <i class="fas fa-print"></i> បោះពុម្ពទាំងអស់ (${db.teachers.length} នាក់)
-                    </button>
-                </div>
-            `);
-
-            setTimeout(() => {
-                db.teachers.forEach((t, idx) => {
-                    const el = document.getElementById(`allTchQr_${idx}`);
-                    if (el) {
-                        new QRCode(el, { text: t.id, width: 85, height: 85 });
-                    }
-                });
-            }, 100);
-        }
-
-        function printAllStudentsQRCodes() {
-            const yearStudents = db.students.filter(s => s.year === db.settings.currentYear);
-            if (yearStudents.length === 0) {
-                showToast('មិនទាន់មានទិន្នន័យសិស្សសម្រាប់បោះពុម្ពទេ!', 'error');
-                return;
-            }
-            const cardsHTML = yearStudents.map((s, idx) => {
-                const avatarHTML = s.photo
-                    ? `<img src="${s.photo}" alt="${s.nameKh}" class="w-14 h-14 mx-auto rounded-xl object-cover border border-blue-200 shadow-xs">`
-                    : `<div class="w-14 h-14 mx-auto rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-2xl font-bold text-blue-600">${s.nameKh.charAt(0)}</div>`;
-
-                return `
-                    <div class="id-card-box w-[270px] h-[380px] mx-auto bg-white border-2 border-blue-600 rounded-2xl overflow-hidden shadow-md text-center flex flex-col justify-between p-3.5 box-border" style="border-color: #2563eb; border-radius: 16px; box-sizing: border-box;">
-                        <div>
-                            <div class="bg-blue-600 text-white py-2 px-3 rounded-xl text-center mb-2.5" style="background-color: #1d4ed8 !important; color: #ffffff !important;">
-                                <p class="text-[9px] opacity-95">ព្រះរាជាណាចក្រកម្ពុជា</p>
-                                <h4 class="font-bold text-xs leading-snug">${db.settings.schoolNameKh}</h4>
-                                <p class="text-[8px] text-blue-100">បណ្ណសម្គាល់ខ្លួនសិស្ស (STUDENT ID CARD)</p>
-                            </div>
-                            <div class="space-y-1.5">
-                                ${avatarHTML}
-                                <div>
-                                    <h3 class="text-sm font-bold text-slate-800 leading-tight">${s.nameKh}</h3>
-                                    <p class="text-[11px] font-semibold text-slate-500 uppercase">${s.nameEn || ''}</p>
-                                </div>
-                            </div>
-                            <div class="text-[10px] text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-200 space-y-0.5 text-center mt-2" style="background-color: #f8fafc !important; border-color: #e2e8f0 !important;">
-                                <p>អត្តលេខ: <span class="font-mono font-bold text-blue-600" style="color: #2563eb !important;">${s.id}</span></p>
-                                <p>ភេទ: <strong>${s.gender}</strong> | ថ្នាក់ទី: <strong>${s.room || '-'}</strong></p>
-                                <p>ឆ្នាំសិក្សា: <strong>${s.year}</strong></p>
-                            </div>
-                        </div>
-                        <div class="flex flex-col items-center justify-center border-t border-slate-100 pt-1.5">
-                            <div id="allStuQr_${idx}" class="flex justify-center"></div>
-                            <p class="text-[9px] text-slate-400 mt-0.5">ស្កេន QR Code ដើម្បីកត់វត្តមាន</p>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            openModal('បោះពុម្ពកាត QR Code សិស្សទាំងអស់', `
-                <div id="allStudentsQrPrintable" class="bulk-print-grid grid grid-cols-1 sm:grid-cols-2 gap-4 p-2">
-                    ${cardsHTML}
-                </div>
-                <div class="flex justify-center gap-3 mt-4 pt-3 border-t no-print">
-                    <button onclick="printHTML(document.getElementById('allStudentsQrPrintable').outerHTML)" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-md flex items-center gap-2">
-                        <i class="fas fa-print"></i> បោះពុម្ពទាំងអស់ (${yearStudents.length} នាក់)
-                    </button>
-                </div>
-            `);
-
-            setTimeout(() => {
-                yearStudents.forEach((s, idx) => {
-                    const el = document.getElementById(`allStuQr_${idx}`);
-                    if (el) {
-                        new QRCode(el, { text: s.id, width: 85, height: 85 });
-                    }
-                });
-            }, 100);
-        }
-
-        function printAllTeachersQRCodes() {
-            if (!db.teachers || db.teachers.length === 0) {
-                showToast('មិនទាន់មានទិន្នន័យគ្រូបង្រៀនសម្រាប់បោះពុម្ពទេ!', 'error');
-                return;
-            }
-            const cardsHTML = db.teachers.map((t, idx) => {
-                const avatarHTML = t.photo
-                    ? `<img src="${t.photo}" alt="${t.nameKh}" class="w-14 h-14 mx-auto rounded-xl object-cover border border-emerald-200 shadow-xs">`
-                    : `<div class="w-14 h-14 mx-auto rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-2xl font-bold text-emerald-600">${t.nameKh.charAt(0)}</div>`;
-
-                return `
-                    <div class="id-card-box w-[270px] h-[380px] mx-auto bg-white border-2 border-emerald-600 rounded-2xl overflow-hidden shadow-md text-center flex flex-col justify-between p-3.5 box-border" style="border-color: #059669; border-radius: 16px; box-sizing: border-box;">
-                        <div>
-                            <div class="bg-emerald-700 text-white py-2 px-3 rounded-xl text-center mb-2.5" style="background-color: #047857 !important; color: #ffffff !important;">
-                                <p class="text-[9px] opacity-95">ព្រះរាជាណាចក្រកម្ពុជា</p>
-                                <h4 class="font-bold text-xs leading-snug">${db.settings.schoolNameKh}</h4>
-                                <p class="text-[8px] text-emerald-100">បណ្ណសម្គាល់ខ្លួនគ្រូបង្រៀន (TEACHER ID CARD)</p>
-                            </div>
-                            <div class="space-y-1.5">
-                                ${avatarHTML}
-                                <div>
-                                    <h3 class="text-sm font-bold text-slate-800 leading-tight">${t.nameKh}</h3>
-                                    <p class="text-[11px] font-semibold text-slate-500 uppercase">${t.nameEn || ''}</p>
-                                </div>
-                            </div>
-                            <div class="text-[10px] text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-200 space-y-0.5 text-center mt-2" style="background-color: #f8fafc !important; border-color: #e2e8f0 !important;">
-                                <p>អត្តលេខ: <span class="font-mono font-bold text-emerald-700" style="color: #059669 !important;">${t.id}</span></p>
-                                <p class="truncate">មុខវិជ្ជា: <strong>${t.subject || '-'}</strong></p>
-                                <p>ប្រចាំថ្នាក់: <strong>${t.homeroom || 'គ្មាន'}</strong></p>
-                            </div>
-                        </div>
-                        <div class="flex flex-col items-center justify-center border-t border-slate-100 pt-1.5">
-                            <div id="allTchQr_${idx}" class="flex justify-center"></div>
-                            <p class="text-[9px] text-slate-400 mt-0.5">ស្កេន QR Code ដើម្បីកត់វត្តមាន</p>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            openModal('បោះពុម្ពកាត QR Code គ្រូបង្រៀនទាំងអស់', `
-                <div id="allTeachersQrPrintable" class="bulk-print-grid grid grid-cols-1 sm:grid-cols-2 gap-4 p-2">
-                    ${cardsHTML}
-                </div>
-                <div class="flex justify-center gap-3 mt-4 pt-3 border-t no-print">
-                    <button onclick="printHTML(document.getElementById('allTeachersQrPrintable').outerHTML)" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-md flex items-center gap-2">
-                        <i class="fas fa-print"></i> បោះពុម្ពទាំងអស់ (${db.teachers.length} នាក់)
-                    </button>
-                </div>
-            `);
-
-            setTimeout(() => {
-                db.teachers.forEach((t, idx) => {
-                    const el = document.getElementById(`allTchQr_${idx}`);
-                    if (el) {
-                        new QRCode(el, { text: t.id, width: 85, height: 85 });
                     }
                 });
             }, 100);
@@ -5350,15 +5150,15 @@
             reader.onload = (e) => {
                 try {
                     const imported = JSON.parse(e.target.result);
-                    if (imported && imported.settings && imported.students) {
-                        db = imported;
+                    if (imported && imported.settings) {
+                        db = normalizeDB(imported);
                         saveDB();
                         updateHeaderInfo();
                         renderSidebar();
                         navigateTo('dashboard');
                         showToast('🎉 បាន Restore ទិន្នន័យចូលប្រព័ន្ធជោគជ័យ!', 'success');
                     } else {
-                        showToast('❌ ဖក្សាយឯកសារ Backup មិនត្រឹមត្រូវទេ!', 'error');
+                        showToast('❌ ឯកសារ Backup មិនត្រឹមត្រូវទេ!', 'error');
                     }
                 } catch (err) {
                     showToast('❌ មានបញ្ហាក្នុងការអានឯកសារ JSON!', 'error');
