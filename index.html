@@ -926,18 +926,29 @@
             }
         }
 
-        function logAudit(action, details) {
-            if (!db.auditLogs) db.auditLogs = [];
-            db.auditLogs.unshift({
-                id: 'LOG-' + Date.now().toString().slice(-5),
-                timestamp: new Date().toLocaleString('km-KH'),
-                user: currentUser ? currentUser.username : 'System',
-                action: action,
-                details: details
-            });
-            if (db.auditLogs.length > 100) db.auditLogs.pop();
-            saveDB();
-        }
+       function logAudit(action, details = '') {
+    if (!db.auditLogs) db.auditLogs = [];
+    db.auditLogs = db.auditLogs.filter(item => item && typeof item === 'object').map(item => ({
+        id: item.id ?? ('LOG-' + Date.now().toString().slice(-5)),
+        timestamp: item.timestamp ?? new Date().toLocaleString('km-KH'),
+        user: item.user ?? 'System',
+        action: item.action ?? 'សកម្មភាព',
+        details: item.details ?? ''
+    }));
+
+    const safeAction = (action === undefined || action === null) ? 'សកម្មភាព' : String(action);
+    const safeDetails = (details === undefined || details === null) ? '' : String(details);
+
+    db.auditLogs.unshift({
+        id: 'LOG-' + Date.now().toString().slice(-5),
+        timestamp: new Date().toLocaleString('km-KH'),
+        user: currentUser ? currentUser.username : 'System',
+        action: safeAction,
+        details: safeDetails
+    });
+    if (db.auditLogs.length > 100) db.auditLogs.pop();
+    saveDB();
+}
 
         // Toast Notification System
         function showToast(message, type = 'success') {
