@@ -2786,10 +2786,88 @@
       </div>
       <div class="flex justify-end gap-2 pt-3">
         <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-100 rounded-xl text-sm">បោះបង់</button>
-        <button type="submit" class="px-4 py-2 bg-amber-600 text-white rounded-xl text-sm font-medium">ដំណើរការចម្លង / ឡើងថ្នាក់</button>
+        <button type="submit" id="promoteSubmitBtn" class="px-4 py-2 bg-amber-600 text-white rounded-xl text-sm font-medium">ដំណើរការចម្លង / ឡើងថ្នាក់</button>
       </div>
     </form>
   `);
+
+  setTimeout(() => {
+    const form = document.getElementById('promoteForm');
+    if (!form) return;
+
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      try {
+        const fromYear = document.getElementById('promFromYear').value;
+        const toYear = document.getElementById('promToYear').value;
+        const fromGrade = String(document.getElementById('promFromGrade').value);
+        const mode = document.getElementById('promMode').value;
+
+        const targetGrade = mode === 'keep' ? fromGrade : String(Number(fromGrade) + 1);
+
+        const targets = (db.students || []).filter(s =>
+          String(s.year || s.academicYear || '') === String(fromYear) &&
+          String(s.grade || '') === fromGrade
+        );
+
+        if (!targets.length) {
+          if (typeof showToast === 'function') {
+            showToast(`មិនមានទិន្នន័យសិស្សថ្នាក់ទី${fromGrade} ក្នុងឆ្នាំ ${fromYear} ទេ!`, 'warning');
+          } else {
+            alert(`មិនមានទិន្នន័យសិស្សថ្នាក់ទី${fromGrade} ក្នុងឆ្នាំ ${fromYear} ទេ!`);
+          }
+          return;
+        }
+
+        let copiedCount = 0;
+        targets.forEach((s) => {
+          const currentRoomSuffix = (s.room && String(s.room).replace(/^\d+/, '')) || 'A';
+          const alreadyExists = db.students.some(existing =>
+            String(existing.year || existing.academicYear || '') === String(toYear) &&
+            String(existing.id) === String(s.id)
+          );
+
+          if (!alreadyExists) {
+            const cloned = {
+              ...s,
+              year: toYear,
+              academicYear: toYear,
+              grade: targetGrade,
+              room: targetGrade + currentRoomSuffix,
+              feePaid: 0,
+              history: [
+                ...(Array.isArray(s.history) ? s.history : []),
+                `${fromYear}: ចម្លងពីថ្នាក់ទី${fromGrade} -> ថ្នាក់ទី${targetGrade} (${toYear})`
+              ]
+            };
+            db.students.push(cloned);
+            copiedCount++;
+          }
+        });
+
+        if (typeof logAudit === 'function') {
+          logAudit(`ចម្លងសិស្ស ${copiedCount} នាក់ ពីឆ្នាំ ${fromYear} (ថ្នាក់ទី${fromGrade}) ទៅឆ្នាំ ${toYear} (ថ្នាក់ទី${targetGrade})`);
+        }
+        if (typeof saveDB === 'function') saveDB();
+        if (typeof closeModal === 'function') closeModal();
+        if (typeof renderStudents === 'function') {
+          const mainEl = document.getElementById('mainContent');
+          if (mainEl) renderStudents(mainEl);
+        }
+
+        const msg = `បានចម្លងសិស្សចំនួន ${copiedCount} នាក់ ទៅឆ្នាំសិក្សា ${toYear} (ថ្នាក់ទី${targetGrade})!`;
+        if (typeof showToast === 'function') {
+          showToast(msg, 'success');
+        } else {
+          alert(msg);
+        }
+      } catch (err) {
+        console.error('Promote error:', err);
+        alert('មានបញ្ហាក្នុងការដំណើរការ៖ ' + err.message);
+      }
+    };
+  }, 50);
+}
 
   document.getElementById('promoteForm').onsubmit = (e) => {
     e.preventDefault();
