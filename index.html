@@ -2869,61 +2869,7 @@
   }, 50);
 }
 
-  document.getElementById('promoteForm').onsubmit = (e) => {
-    e.preventDefault();
-    const fromYear = document.getElementById('promFromYear').value;
-    const toYear = document.getElementById('promToYear').value;
-    const fromGrade = document.getElementById('promFromGrade').value;
-    const mode = document.getElementById('promMode').value;
 
-    const targetGrade = mode === 'keep' ? String(fromGrade) : String(Number(fromGrade) + 1);
-    const roomSuffix = (s.room && String(s.room).replace(/^\d+/, '')) || 'A';
-
-    const targets = db.students.filter(s =>
-      String(s.year || s.academicYear || '') === String(fromYear) &&
-      String(s.grade) === String(fromGrade)
-    );
-
-    if (!targets.length) {
-      showToast(`មិនមានទិន្នន័យសិស្សថ្នាក់ទី${fromGrade} ក្នុងឆ្នាំ ${fromYear} ទេ!`, 'warning');
-      return;
-    }
-
-    let copiedCount = 0;
-    targets.forEach((s, idx) => {
-      const currentRoomSuffix = (s.room && String(s.room).replace(/^\d+/, '')) || 'A';
-      const alreadyExists = db.students.some(existing =>
-        String(existing.year || existing.academicYear || '') === String(toYear) &&
-        String(existing.id) === String(s.id)
-      );
-
-      if (!alreadyExists) {
-        const cloned = {
-          ...s,
-          year: toYear,
-          academicYear: toYear,
-          grade: targetGrade,
-          room: targetGrade + currentRoomSuffix,
-          feePaid: 0,
-          history: [
-            ...(s.history || []),
-            `${fromYear}: ចម្លងពីថ្នាក់ទី${fromGrade} -> ថ្នាក់ទី${targetGrade} (${toYear})`
-          ]
-        };
-        db.students.push(cloned);
-        copiedCount++;
-      }
-    });
-
-    logAudit(`ចម្លងសិស្ស ${copiedCount} នាក់ ពីឆ្នាំ ${fromYear} (ថ្នាក់ទី${fromGrade}) ទៅឆ្នាំ ${toYear} (ថ្នាក់ទី${targetGrade})`);
-    saveDB();
-    closeModal();
-    if (typeof renderStudents === 'function') {
-      renderStudents(document.getElementById('mainContent'));
-    }
-    showToast(`បានចម្លងសិស្សចំនួន ${copiedCount} នាក់ ទៅឆ្នាំសិក្សា ${toYear} (ថ្នាក់ទី${targetGrade})!`, 'success');
-  };
-}
 
         function exportStudentsCSV() {
             const rows = [['ID', 'ឈ្មោះខ្មែរ', 'Name English', 'ភេទ', 'ថ្នាក់', 'ក្រុម', 'ទូរស័ព្ទ', 'ឆ្នាំសិក្សា']];
